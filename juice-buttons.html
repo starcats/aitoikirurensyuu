@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JUICE — Button Feel Lab</title>
+  <style>
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: radial-gradient(ellipse at 30% 20%, #0d1f3c 0%, #050d1a 50%, #0a0a1a 100%);
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      gap: 56px;
+    }
+
+    header {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 200;
+      letter-spacing: 0.6em;
+      text-indent: 0.6em;
+    }
+
+    .subtitle {
+      color: #555;
+      font-size: 0.8rem;
+      letter-spacing: 0.12em;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 48px 36px;
+    }
+
+    .cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .label {
+      font-size: 0.65rem;
+      letter-spacing: 0.18em;
+      color: #444;
+      text-transform: uppercase;
+    }
+
+    button {
+      width: 110px;
+      height: 110px;
+      border: none;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+      overflow: hidden;
+      outline: none;
+      will-change: transform;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* 1. Flat — 色だけ変わる */
+    .btn-flat {
+      background: #222;
+      color: #666;
+      border: 1px solid #2a2a2a;
+      transition: background 0.1s, color 0.1s;
+    }
+    .btn-flat:active {
+      background: #4a9eff;
+      color: #fff;
+    }
+
+    /* 2. Sink — ぐっと沈む */
+    .btn-sink {
+      background: #4a9eff;
+      color: #fff;
+      transition: transform 0.12s ease, filter 0.12s ease;
+    }
+    .btn-sink:active {
+      transform: scale(0.91);
+      filter: brightness(0.82);
+    }
+
+    /* 3. 3D — 物理ボタン */
+    .btn-3d {
+      background: #7c5cbf;
+      color: #fff;
+      box-shadow: 0 7px 0 #4a3575, 0 10px 16px rgba(0,0,0,0.5);
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+    .btn-3d:active {
+      transform: translateY(6px);
+      box-shadow: 0 1px 0 #4a3575, 0 2px 6px rgba(0,0,0,0.3);
+    }
+
+    /* 4. Squish — つぶれる */
+    .btn-squish {
+      background: #ff6b6b;
+      color: #fff;
+      transition: transform 0.12s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+    .btn-squish:active {
+      transform: scaleX(1.14) scaleY(0.86);
+    }
+
+    /* 5. Bounce — バネ */
+    @keyframes bounce {
+      0%   { transform: scale(1); }
+      25%  { transform: scale(0.85); }
+      55%  { transform: scale(1.10); }
+      75%  { transform: scale(0.96); }
+      90%  { transform: scale(1.03); }
+      100% { transform: scale(1); }
+    }
+    .btn-bounce {
+      background: #ff9f43;
+      color: #fff;
+    }
+    .btn-bounce.playing {
+      animation: bounce 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+    }
+
+    /* 6. Glow — 光る */
+    .btn-glow {
+      background: #13131f;
+      color: #8888ff;
+      border: 1px solid #2a2a4a;
+      transition: filter 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .btn-glow:active {
+      filter: drop-shadow(0 0 10px #6666ff) drop-shadow(0 0 22px #4444ee);
+      border-color: #6666ff;
+      color: #fff;
+    }
+
+    /* 7. Ripple — 波紋 */
+    @keyframes ripple {
+      0%   { transform: scale(0); opacity: 1; }
+      100% { transform: scale(2.5); opacity: 0; }
+    }
+    .btn-ripple {
+      background: #00b894;
+      color: #fff;
+    }
+    .btn-ripple::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: rgba(255,255,255,0.35);
+      pointer-events: none;
+      opacity: 0;
+    }
+    .btn-ripple.playing::after {
+      animation: ripple 0.55s ease-out both;
+    }
+
+    /* 8. Shake — 震える */
+    @keyframes shake {
+      0%   { transform: translateX(0) scale(0.93); }
+      20%  { transform: translateX(-8px) scale(0.93); }
+      40%  { transform: translateX(8px) scale(0.93); }
+      60%  { transform: translateX(-5px) scale(0.96); }
+      80%  { transform: translateX(5px) scale(0.98); }
+      100% { transform: translateX(0) scale(1); }
+    }
+    .btn-shake {
+      background: #e17055;
+      color: #fff;
+    }
+    .btn-shake.playing {
+      animation: shake 0.32s ease-out both;
+    }
+
+    /* 9. Spin — ひねる */
+    @keyframes spin {
+      0%   { transform: scale(1) rotate(0deg); }
+      30%  { transform: scale(0.88) rotate(-15deg); }
+      65%  { transform: scale(1.06) rotate(6deg); }
+      85%  { transform: scale(0.98) rotate(-2deg); }
+      100% { transform: scale(1) rotate(0deg); }
+    }
+    .btn-spin {
+      background: #fdcb6e;
+      color: #333;
+    }
+    .btn-spin.playing {
+      animation: spin 0.38s ease-out both;
+    }
+
+    /* --- Row 3: Squish Variations --- */
+
+    /* 11. Jelly — ぷるぷる振動 */
+    @keyframes jelly {
+      0%   { transform: scaleX(1)    scaleY(1); }
+      18%  { transform: scaleX(1.15) scaleY(0.85); }
+      36%  { transform: scaleX(0.90) scaleY(1.10); }
+      54%  { transform: scaleX(1.07) scaleY(0.93); }
+      72%  { transform: scaleX(0.97) scaleY(1.03); }
+      90%  { transform: scaleX(1.01) scaleY(0.99); }
+      100% { transform: scaleX(1)    scaleY(1); }
+    }
+    .btn-jelly {
+      background: #e84393;
+      color: #fff;
+    }
+    .btn-jelly.playing {
+      animation: jelly 0.5s ease-out both;
+    }
+
+    /* 12. Anticipation — 予備動作あり */
+    @keyframes anticipation {
+      0%   { transform: scaleX(1)    scaleY(1); }
+      15%  { transform: scaleX(0.94) scaleY(1.06); }
+      45%  { transform: scaleX(1.16) scaleY(0.84); }
+      68%  { transform: scaleX(0.96) scaleY(1.04); }
+      84%  { transform: scaleX(1.03) scaleY(0.97); }
+      100% { transform: scaleX(1)    scaleY(1); }
+    }
+    .btn-anticipation {
+      background: #6bcb77;
+      color: #fff;
+    }
+    .btn-anticipation.playing {
+      animation: anticipation 0.45s ease-out both;
+    }
+
+    /* 13. Vertical — 縦向きsquish */
+    .btn-squish-v {
+      background: #a29bfe;
+      color: #fff;
+      transition: transform 0.12s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+    .btn-squish-v:active {
+      transform: scaleX(0.86) scaleY(1.14);
+    }
+
+    /* 14. Snap — 瞬間squish＋バネ戻り */
+    .btn-snap {
+      background: #00cec9;
+      color: #fff;
+      transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .btn-snap:active {
+      transform: scaleX(1.14) scaleY(0.86);
+      transition: transform 0.06s ease;
+    }
+
+    /* 15. Blob — ぐにょっと変形 */
+    @keyframes blob {
+      0%   { transform: scaleX(1)    scaleY(1);    border-radius: 20px; }
+      25%  { transform: scaleX(1.18) scaleY(0.82); border-radius: 40px 40px 16px 16px; }
+      50%  { transform: scaleX(0.88) scaleY(1.12); border-radius: 16px 16px 40px 40px; }
+      75%  { transform: scaleX(1.06) scaleY(0.96); border-radius: 24px; }
+      100% { transform: scaleX(1)    scaleY(1);    border-radius: 20px; }
+    }
+    .btn-blob {
+      background: #fab1a0;
+      color: #333;
+    }
+    .btn-blob.playing {
+      animation: blob 0.5s ease-out both;
+    }
+
+    /* 10. Invert — 反転 */
+    .btn-invert {
+      background: #eee;
+      color: #111;
+      transition: filter 0.08s, transform 0.08s;
+    }
+    .btn-invert:active {
+      filter: invert(1);
+      transform: scale(0.94);
+    }
+
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>JUICE</h1>
+    <p class="subtitle">ボタンを押して、気持ちよさを感じ比べてみよう</p>
+  </header>
+
+  <div class="grid">
+
+    <div class="cell">
+      <button class="btn-flat">押す</button>
+      <span class="label">Flat</span>
+    </div>
+
+    <div class="cell">
+      <button class="btn-sink">押す</button>
+      <span class="label">Sink</span>
+    </div>
+
+    <div class="cell">
+      <button class="btn-3d">押す</button>
+      <span class="label">3D</span>
+    </div>
+
+    <div class="cell">
+      <button class="btn-squish">押す</button>
+      <span class="label">Squish</span>
+    </div>
+
+    <div class="cell">
+      <button class="btn-bounce">押す</button>
+      <span class="label">Bounce</span>
+    </div>
+
+    <div class="cell">
+      <button class="btn-glow">押す</button>
+      <span class="label">Glow</span>
+    </div>
+
+    <div class="cell">
+      <button class="btn-ripple">押す</button>
+      <span class="label">Ripple</span>
+    </div>
+
+    <div class="cell">
+      <button class="btn-shake">押す</button>
+      <span class="label">Shake</span>
+    </div>
+
+    <div class="cell">
+      <button class="btn-spin">押す</button>
+      <span class="label">Spin</span>
+    </div>
+
+    <div class="cell">
+      <button class="btn-invert">押す</button>
+      <span class="label">Invert</span>
+    </div>
+
+    <div class="cell">
+      <button class="btn-jelly">押す</button>
+      <span class="label">Jelly</span>
+    </div>
+
+    <div class="cell">
+      <button class="btn-anticipation">押す</button>
+      <span class="label">Anticipation</span>
+    </div>
+
+    <div class="cell">
+      <button class="btn-squish-v">押す</button>
+      <span class="label">Vertical</span>
+    </div>
+
+    <div class="cell">
+      <button class="btn-snap">押す</button>
+      <span class="label">Snap</span>
+    </div>
+
+    <div class="cell">
+      <button class="btn-blob">押す</button>
+      <span class="label">Blob</span>
+    </div>
+
+  </div>
+
+  <script>
+    ['.btn-bounce', '.btn-shake', '.btn-spin', '.btn-jelly', '.btn-anticipation', '.btn-blob'].forEach(selector => {
+      document.querySelector(selector).addEventListener('click', function() {
+        this.classList.remove('playing')
+        void this.offsetWidth
+        this.classList.add('playing')
+        this.addEventListener('animationend', () => this.classList.remove('playing'), { once: true })
+      })
+    })
+
+    // Ripple は ::after のアニメーションなので setTimeout で管理
+    document.querySelector('.btn-ripple').addEventListener('click', function() {
+      this.classList.remove('playing')
+      void this.offsetWidth
+      this.classList.add('playing')
+      setTimeout(() => this.classList.remove('playing'), 550)
+    })
+  </script>
+
+</body>
+</html>
