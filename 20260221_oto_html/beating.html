@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>うねり探求 — Beating Lab</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: radial-gradient(ellipse at 30% 20%, #0d1f3c, #050d1a, #0a0a1a);
+      color: #e0e8ff;
+      font-family: 'Helvetica Neue', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      gap: 32px;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 300;
+      letter-spacing: 0.15em;
+      color: #7aa8ff;
+    }
+
+    .subtitle {
+      font-size: 0.8rem;
+      color: #4a6aaa;
+      letter-spacing: 0.1em;
+      margin-top: -24px;
+    }
+
+    /* キャンバス */
+    .canvas-wrap {
+      position: relative;
+      width: 100%;
+      max-width: 700px;
+    }
+
+    canvas {
+      width: 100%;
+      height: 160px;
+      border-radius: 12px;
+      background: #030810;
+      display: block;
+    }
+
+    .canvas-label {
+      position: absolute;
+      top: 10px;
+      left: 14px;
+      font-size: 0.7rem;
+      color: #4a6aaa;
+      letter-spacing: 0.08em;
+    }
+
+    /* うねり情報 */
+    .beat-info {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      background: #0a1628;
+      border: 1px solid #1a2d55;
+      border-radius: 12px;
+      padding: 20px 32px;
+      width: 100%;
+      max-width: 700px;
+    }
+
+    .beat-number {
+      font-size: 3rem;
+      font-weight: 200;
+      color: #7aa8ff;
+      line-height: 1;
+      min-width: 80px;
+    }
+
+    .beat-number span {
+      font-size: 1rem;
+      color: #4a6aaa;
+      display: block;
+      margin-top: 4px;
+    }
+
+    .beat-formula {
+      font-size: 0.85rem;
+      color: #4a6aaa;
+      line-height: 1.8;
+    }
+
+    .beat-formula strong {
+      color: #7aa8ff;
+    }
+
+    /* コントロール */
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      width: 100%;
+      max-width: 700px;
+    }
+
+    .control-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .control-label {
+      font-size: 0.8rem;
+      color: #4a6aaa;
+      letter-spacing: 0.08em;
+      min-width: 80px;
+    }
+
+    .freq-value {
+      font-size: 1.1rem;
+      color: #e0e8ff;
+      min-width: 60px;
+      text-align: right;
+    }
+
+    .freq-unit {
+      font-size: 0.75rem;
+      color: #4a6aaa;
+      min-width: 20px;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      flex: 1;
+      height: 3px;
+      border-radius: 2px;
+      background: #1a2d55;
+      outline: none;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #7aa8ff;
+      cursor: pointer;
+    }
+
+    #slider-a::-webkit-slider-thumb { background: #7aa8ff; }
+    #slider-b::-webkit-slider-thumb { background: #ff7aaa; }
+
+    .wave-a { color: #7aa8ff; }
+    .wave-b { color: #ff7aaa; }
+
+    /* ボタン */
+    button {
+      width: 100%;
+      max-width: 700px;
+      padding: 16px;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      letter-spacing: 0.15em;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    #toggle-btn {
+      background: #1a2d55;
+      color: #7aa8ff;
+    }
+
+    #toggle-btn.playing {
+      background: #0d2040;
+      color: #ff7aaa;
+    }
+
+    #toggle-btn:hover {
+      transform: scale(1.01);
+      filter: brightness(1.2);
+    }
+
+    /* ヒント */
+    .hint {
+      font-size: 0.78rem;
+      color: #2a4070;
+      max-width: 700px;
+      width: 100%;
+      line-height: 1.8;
+      border-left: 2px solid #1a2d55;
+      padding-left: 16px;
+    }
+
+    .hint strong {
+      color: #4a6aaa;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>BEATING LAB</h1>
+  <p class="subtitle">うねりの物理を聴く</p>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas" width="700" height="160"></canvas>
+    <div class="canvas-label">WAVEFORM</div>
+  </div>
+
+  <div class="beat-info">
+    <div class="beat-number" id="beat-display">0.0<span>beats/sec</span></div>
+    <div class="beat-formula">
+      うねり周波数 = |<strong class="wave-a">A</strong> − <strong class="wave-b">B</strong>|<br>
+      = |<strong id="fa-val">440</strong> − <strong id="fb-val">440</strong>| Hz<br>
+      = <strong id="beat-val">0.0</strong> Hz<br>
+      → 1秒に <strong id="beat-val2">0.0</strong> 回うねる
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="control-row">
+      <span class="control-label wave-a">波 A</span>
+      <input type="range" id="slider-a" min="220" max="880" value="440" step="0.5">
+      <span class="freq-value" id="val-a">440.0</span>
+      <span class="freq-unit">Hz</span>
+    </div>
+    <div class="control-row">
+      <span class="control-label wave-b">波 B</span>
+      <input type="range" id="slider-b" min="220" max="880" value="440" step="0.5">
+      <span class="freq-value" id="val-b">440.0</span>
+      <span class="freq-unit">Hz</span>
+    </div>
+  </div>
+
+  <button id="toggle-btn">▶ START</button>
+
+  <div class="hint">
+    <strong>試してみて：</strong><br>
+    AとBを同じ周波数 → うねりなし<br>
+    差を1〜5Hzに → ゆっくりうねる（ドローン音に使われる）<br>
+    差を8Hz以上に → 速くうねって音程感が出てくる<br>
+    差を大きくしていくと → 音楽的な音程（5度・4度）に変わる
+  </div>
+
+</body>
+
+<script>
+  let ctx = null;
+  let oscA = null, oscB = null, gainA = null, gainB = null, masterGain = null;
+  let analyser = null;
+  let animId = null;
+  let isPlaying = false;
+
+  const canvas = document.getElementById('canvas');
+  const canvasCtx = canvas.getContext('2d');
+  const sliderA = document.getElementById('slider-a');
+  const sliderB = document.getElementById('slider-b');
+  const valA = document.getElementById('val-a');
+  const valB = document.getElementById('val-b');
+  const beatDisplay = document.getElementById('beat-display');
+  const faVal = document.getElementById('fa-val');
+  const fbVal = document.getElementById('fb-val');
+  const beatVal = document.getElementById('beat-val');
+  const beatVal2 = document.getElementById('beat-val2');
+  const btn = document.getElementById('toggle-btn');
+
+  function updateBeatInfo() {
+    const a = parseFloat(sliderA.value);
+    const b = parseFloat(sliderB.value);
+    const beat = Math.abs(a - b).toFixed(1);
+    valA.textContent = a.toFixed(1);
+    valB.textContent = b.toFixed(1);
+    faVal.textContent = a.toFixed(1);
+    fbVal.textContent = b.toFixed(1);
+    beatVal.textContent = beat;
+    beatVal2.textContent = beat;
+    beatDisplay.childNodes[0].textContent = beat;
+    if (oscA) oscA.frequency.setTargetAtTime(a, ctx.currentTime, 0.01);
+    if (oscB) oscB.frequency.setTargetAtTime(b, ctx.currentTime, 0.01);
+  }
+
+  sliderA.addEventListener('input', updateBeatInfo);
+  sliderB.addEventListener('input', updateBeatInfo);
+
+  function drawWaveform() {
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    const W = canvas.width;
+    const H = canvas.height;
+
+    function draw() {
+      animId = requestAnimationFrame(draw);
+      analyser.getByteTimeDomainData(dataArray);
+
+      canvasCtx.fillStyle = '#030810';
+      canvasCtx.fillRect(0, 0, W, H);
+
+      // グリッド
+      canvasCtx.strokeStyle = '#0d1a33';
+      canvasCtx.lineWidth = 1;
+      canvasCtx.beginPath();
+      canvasCtx.moveTo(0, H / 2);
+      canvasCtx.lineTo(W, H / 2);
+      canvasCtx.stroke();
+
+      // 波形
+      canvasCtx.strokeStyle = '#7aa8ff';
+      canvasCtx.lineWidth = 2;
+      canvasCtx.shadowColor = '#3366ff';
+      canvasCtx.shadowBlur = 8;
+      canvasCtx.beginPath();
+      const sliceWidth = W / bufferLength;
+      let x = 0;
+      for (let i = 0; i < bufferLength; i++) {
+        const v = dataArray[i] / 128.0;
+        const y = (v * H) / 2;
+        i === 0 ? canvasCtx.moveTo(x, y) : canvasCtx.lineTo(x, y);
+        x += sliceWidth;
+      }
+      canvasCtx.stroke();
+      canvasCtx.shadowBlur = 0;
+    }
+    draw();
+  }
+
+  function startAudio() {
+    ctx = new AudioContext();
+    analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
+
+    masterGain = ctx.createGain();
+    masterGain.gain.value = 0.4;
+
+    gainA = ctx.createGain(); gainA.gain.value = 0.5;
+    gainB = ctx.createGain(); gainB.gain.value = 0.5;
+
+    oscA = ctx.createOscillator();
+    oscB = ctx.createOscillator();
+    oscA.type = 'sine';
+    oscB.type = 'sine';
+    oscA.frequency.value = parseFloat(sliderA.value);
+    oscB.frequency.value = parseFloat(sliderB.value);
+
+    oscA.connect(gainA); gainA.connect(masterGain);
+    oscB.connect(gainB); gainB.connect(masterGain);
+    masterGain.connect(analyser);
+    analyser.connect(ctx.destination);
+
+    oscA.start();
+    oscB.start();
+    drawWaveform();
+  }
+
+  function stopAudio() {
+    cancelAnimationFrame(animId);
+    oscA.stop(); oscB.stop();
+    ctx.close();
+    oscA = oscB = ctx = analyser = null;
+    canvasCtx.fillStyle = '#030810';
+    canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  btn.addEventListener('click', () => {
+    if (!isPlaying) {
+      startAudio();
+      btn.textContent = '■ STOP';
+      btn.classList.add('playing');
+    } else {
+      stopAudio();
+      btn.textContent = '▶ START';
+      btn.classList.remove('playing');
+    }
+    isPlaying = !isPlaying;
+  });
+
+  updateBeatInfo();
+</script>
+</html>
