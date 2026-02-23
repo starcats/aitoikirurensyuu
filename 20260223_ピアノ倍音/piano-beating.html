@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Piano Beating Lab — 倍音でうねる</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: radial-gradient(ellipse at 30% 20%, #1e3a6e, #112244, #1a2a40);
+      color: #e0e8ff;
+      font-family: 'Helvetica Neue', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      gap: 28px;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 300;
+      letter-spacing: 0.15em;
+      color: #7aa8ff;
+    }
+
+    .subtitle {
+      font-size: 0.8rem;
+      color: #6a8acc;
+      letter-spacing: 0.1em;
+      margin-top: -20px;
+    }
+
+    /* Mode tabs */
+    .mode-tabs {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+      max-width: 700px;
+    }
+
+    .mode-tab {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #3a5585;
+      border-radius: 8px;
+      background: transparent;
+      color: #6a8acc;
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .mode-tab.active {
+      background: #3a5585;
+      color: #9ac0ff;
+      border-color: #3a5080;
+    }
+
+    .mode-tab:hover {
+      filter: brightness(1.3);
+    }
+
+    /* Canvas */
+    .canvas-wrap {
+      position: relative;
+      width: 100%;
+      max-width: 700px;
+    }
+
+    canvas {
+      width: 100%;
+      height: 160px;
+      border-radius: 12px;
+      background: #0c1e30;
+      display: block;
+    }
+
+    .canvas-label {
+      position: absolute;
+      top: 10px;
+      left: 14px;
+      font-size: 0.7rem;
+      color: #6a8acc;
+      letter-spacing: 0.08em;
+    }
+
+    /* Beat info */
+    .beat-info {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      background: #162840;
+      border: 1px solid #3a5585;
+      border-radius: 12px;
+      padding: 20px 32px;
+      width: 100%;
+      max-width: 700px;
+    }
+
+    .beat-number {
+      font-size: 3rem;
+      font-weight: 200;
+      color: #7aa8ff;
+      line-height: 1;
+      min-width: 80px;
+    }
+
+    .beat-number span {
+      font-size: 1rem;
+      color: #6a8acc;
+      display: block;
+      margin-top: 4px;
+    }
+
+    .beat-desc {
+      font-size: 0.85rem;
+      color: #6a8acc;
+      line-height: 2;
+    }
+
+    .beat-desc strong { color: #7aa8ff; }
+    .beat-desc .accent { color: #ff7aaa; }
+
+    /* Harmonic grid */
+    .harmonic-grid {
+      width: 100%;
+      max-width: 700px;
+      background: #162840;
+      border: 1px solid #3a5585;
+      border-radius: 12px;
+      padding: 20px 24px;
+      transition: opacity 0.3s;
+    }
+
+    .harmonic-grid.dimmed { opacity: 0.25; }
+
+    .harmonic-grid-title {
+      font-size: 0.7rem;
+      color: #6a8acc;
+      letter-spacing: 0.12em;
+      margin-bottom: 16px;
+    }
+
+    .harmonic-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-size: 0.76rem;
+    }
+
+    .harmonic-row:last-child { margin-bottom: 0; }
+
+    .h-label {
+      color: #6a8acc;
+      min-width: 44px;
+    }
+
+    .h-freq {
+      color: #7aa8ff;
+      min-width: 76px;
+      font-family: 'SF Mono', monospace;
+    }
+
+    .h-arrow {
+      color: #3a5585;
+      font-size: 0.7rem;
+    }
+
+    .h-beat {
+      min-width: 64px;
+      font-family: 'SF Mono', monospace;
+    }
+
+    .h-bar-wrap {
+      flex: 1;
+      height: 3px;
+      background: #1e3050;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .h-bar {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.12s;
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 100%;
+      max-width: 700px;
+    }
+
+    .control-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .control-label {
+      font-size: 0.78rem;
+      color: #6a8acc;
+      letter-spacing: 0.08em;
+      min-width: 90px;
+    }
+
+    .value-display {
+      font-size: 1.05rem;
+      color: #e0e8ff;
+      min-width: 52px;
+      text-align: right;
+      font-family: 'SF Mono', monospace;
+    }
+
+    .value-unit {
+      font-size: 0.72rem;
+      color: #6a8acc;
+      min-width: 22px;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      flex: 1;
+      height: 3px;
+      border-radius: 2px;
+      background: #3a5585;
+      outline: none;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #7aa8ff;
+      cursor: pointer;
+    }
+
+    #slider-beat::-webkit-slider-thumb { background: #ff7aaa; }
+
+    /* Button */
+    button#toggle-btn {
+      width: 100%;
+      max-width: 700px;
+      padding: 16px;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      letter-spacing: 0.15em;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #3a5585;
+      color: #7aa8ff;
+    }
+
+    button#toggle-btn.playing {
+      background: #0d2040;
+      color: #ff7aaa;
+    }
+
+    button#toggle-btn:hover {
+      transform: scale(1.01);
+      filter: brightness(1.2);
+    }
+
+    /* Hint */
+    .hint {
+      font-size: 0.78rem;
+      color: #3a5585;
+      max-width: 700px;
+      width: 100%;
+      line-height: 1.9;
+      border-left: 2px solid #3a5585;
+      padding-left: 16px;
+    }
+
+    .hint strong { color: #6a8acc; }
+  </style>
+</head>
+<body>
+
+  <h1>PIANO BEATING LAB</h1>
+  <p class="subtitle">倍音が重なるとうねりが豊かになる</p>
+
+  <div class="mode-tabs">
+    <button class="mode-tab" id="tab-sine" onclick="setMode('sine')">サイン波（倍音なし）</button>
+    <button class="mode-tab active" id="tab-piano" onclick="setMode('piano')">ピアノ音（倍音あり）</button>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas" width="700" height="160"></canvas>
+    <div class="canvas-label" id="canvas-label">WAVEFORM — PIANO MODE</div>
+  </div>
+
+  <div class="beat-info">
+    <div class="beat-number" id="beat-display">3.0<span>beats/sec</span></div>
+    <div class="beat-desc" id="beat-desc"></div>
+  </div>
+
+  <div class="harmonic-grid" id="harmonic-grid">
+    <div class="harmonic-grid-title">HARMONIC BEATING — 倍音ごとのうねり</div>
+    <div id="harmonic-rows"></div>
+  </div>
+
+  <div class="controls">
+    <div class="control-row">
+      <span class="control-label">基音</span>
+      <input type="range" id="slider-base" min="220" max="660" value="440" step="1">
+      <span class="value-display" id="val-base">440</span>
+      <span class="value-unit">Hz</span>
+    </div>
+    <div class="control-row">
+      <span class="control-label" style="color:#ff9ac0">うねり</span>
+      <input type="range" id="slider-beat" min="0" max="15" value="3" step="0.1">
+      <span class="value-display" id="val-beat" style="color:#ff7aaa">3.0</span>
+      <span class="value-unit">Hz</span>
+    </div>
+  </div>
+
+  <button id="toggle-btn">▶ START</button>
+
+  <div class="hint">
+    <strong>聴き比べ方：</strong><br>
+    同じ設定でサイン波 → ピアノ音 と切り替えてみる。<br>
+    ピアノ音では倍音ごとにうねりが重なって、音が「生きている」感じになる。<br>
+    うねりを 1〜4Hz に設定して目を閉じて聴くと、エイナウディのドローン感に近くなる。
+  </div>
+
+</body>
+
+<script>
+  // === Constants ===
+  const HARMONICS  = [1, 2, 3, 4, 5, 6];
+  const H_AMPS     = [1.0, 0.6, 0.35, 0.2, 0.12, 0.08];
+  const H_COLORS   = ['#7aa8ff', '#6898f0', '#5888e0', '#4878d0', '#3868c0', '#2858b0'];
+  const TOTAL_AMP  = H_AMPS.reduce((a, b) => a + b, 0);
+
+  // === State ===
+  let audioCtx  = null;
+  let voiceA    = null, voiceB = null;
+  let masterGain = null, analyser = null;
+  let animId    = null;
+  let isPlaying = false;
+  let mode      = 'piano';
+
+  // === DOM ===
+  const canvas      = document.getElementById('canvas');
+  const canvasCtx   = canvas.getContext('2d');
+  const sliderBase  = document.getElementById('slider-base');
+  const sliderBeat  = document.getElementById('slider-beat');
+  const valBase     = document.getElementById('val-base');
+  const valBeat     = document.getElementById('val-beat');
+  const beatDisplay = document.getElementById('beat-display');
+  const beatDesc    = document.getElementById('beat-desc');
+  const hGrid       = document.getElementById('harmonic-grid');
+  const hRows       = document.getElementById('harmonic-rows');
+  const canvasLabel = document.getElementById('canvas-label');
+  const btn         = document.getElementById('toggle-btn');
+
+  // === Build harmonic row UI ===
+  (function buildHarmonicUI() {
+    hRows.innerHTML = '';
+    HARMONICS.forEach((h, i) => {
+      const row = document.createElement('div');
+      row.className = 'harmonic-row';
+      row.innerHTML = `
+        <span class="h-label">${h} 倍音</span>
+        <span class="h-freq" id="hfreq-${i}">--- Hz</span>
+        <span class="h-arrow">→ うねり</span>
+        <span class="h-beat" id="hbeat-${i}" style="color:${H_COLORS[i]}">--- Hz</span>
+        <div class="h-bar-wrap">
+          <div class="h-bar" id="hbar-${i}" style="background:${H_COLORS[i]};width:0%"></div>
+        </div>
+      `;
+      hRows.appendChild(row);
+    });
+  })();
+
+  // === Update display ===
+  function updateInfo() {
+    const base = parseFloat(sliderBase.value);
+    const beat = parseFloat(sliderBeat.value);
+
+    valBase.textContent = base;
+    valBeat.textContent = beat.toFixed(1);
+    beatDisplay.childNodes[0].textContent = beat.toFixed(1);
+
+    if (mode === 'sine') {
+      beatDesc.innerHTML = `
+        うねり周波数 = |A − B|<br>
+        = |${base} − ${(base + beat).toFixed(1)}| Hz<br>
+        = <strong>${beat.toFixed(1)}</strong> Hz → 1秒に <strong>${beat.toFixed(1)}</strong> 回うねる
+      `;
+    } else {
+      beatDesc.innerHTML = `
+        基音のうねり: <strong>${beat.toFixed(1)}</strong> Hz<br>
+        2倍音: <span class="accent">${(beat * 2).toFixed(1)}</span> Hz &nbsp;
+        3倍音: <span class="accent">${(beat * 3).toFixed(1)}</span> Hz<br>
+        倍音ごとにうねりが重なって有機的に揺れる
+      `;
+    }
+
+    // Harmonic rows
+    HARMONICS.forEach((h, i) => {
+      const hFreq = base * h;
+      const hBeat = beat * h;
+      document.getElementById(`hfreq-${i}`).textContent = hFreq.toFixed(0) + ' Hz';
+      document.getElementById(`hbeat-${i}`).textContent = hBeat.toFixed(1) + ' Hz';
+      const pct = Math.min(100, (hBeat / 90) * 100);
+      document.getElementById(`hbar-${i}`).style.width = pct + '%';
+    });
+
+    hGrid.classList.toggle('dimmed', mode === 'sine');
+  }
+
+  // === Mode ===
+  function setMode(m) {
+    mode = m;
+    document.getElementById('tab-sine').classList.toggle('active', m === 'sine');
+    document.getElementById('tab-piano').classList.toggle('active', m === 'piano');
+    canvasLabel.textContent = m === 'piano'
+      ? 'WAVEFORM — PIANO MODE'
+      : 'WAVEFORM — SINE MODE';
+    updateInfo();
+    if (isPlaying) { stopAudio(); startAudio(); }
+  }
+
+  // === Audio ===
+  function createVoice(freq) {
+    const voiceGain = audioCtx.createGain();
+    voiceGain.gain.value = 0.5;
+
+    if (mode === 'sine') {
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const g = audioCtx.createGain();
+      g.gain.value = 1.0;
+      osc.connect(g);
+      g.connect(voiceGain);
+      osc.start();
+      return { oscs: [osc], voiceGain };
+    } else {
+      const oscs = [];
+      HARMONICS.forEach((h, i) => {
+        const osc = audioCtx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = freq * h;
+        const g = audioCtx.createGain();
+        g.gain.value = H_AMPS[i] / TOTAL_AMP;
+        osc.connect(g);
+        g.connect(voiceGain);
+        osc.start();
+        oscs.push(osc);
+      });
+      return { oscs, voiceGain };
+    }
+  }
+
+  function updateVoiceFreq(voice, freq) {
+    const t = audioCtx.currentTime;
+    if (mode === 'sine') {
+      voice.oscs[0].frequency.setTargetAtTime(freq, t, 0.02);
+    } else {
+      HARMONICS.forEach((h, i) => {
+        voice.oscs[i].frequency.setTargetAtTime(freq * h, t, 0.02);
+      });
+    }
+  }
+
+  function startAudio() {
+    audioCtx   = new AudioContext();
+    analyser   = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.35;
+
+    const base = parseFloat(sliderBase.value);
+    const beat = parseFloat(sliderBeat.value);
+
+    voiceA = createVoice(base);
+    voiceB = createVoice(base + beat);
+    voiceA.voiceGain.connect(masterGain);
+    voiceB.voiceGain.connect(masterGain);
+    masterGain.connect(analyser);
+    analyser.connect(audioCtx.destination);
+
+    drawWaveform();
+  }
+
+  function stopAudio() {
+    cancelAnimationFrame(animId);
+    if (voiceA) voiceA.oscs.forEach(o => o.stop());
+    if (voiceB) voiceB.oscs.forEach(o => o.stop());
+    if (audioCtx) audioCtx.close();
+    voiceA = voiceB = audioCtx = analyser = null;
+    canvasCtx.fillStyle = '#0c1e30';
+    canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // === Sliders ===
+  sliderBase.addEventListener('input', () => {
+    updateInfo();
+    if (!isPlaying) return;
+    const base = parseFloat(sliderBase.value);
+    const beat = parseFloat(sliderBeat.value);
+    updateVoiceFreq(voiceA, base);
+    updateVoiceFreq(voiceB, base + beat);
+  });
+
+  sliderBeat.addEventListener('input', () => {
+    updateInfo();
+    if (!isPlaying) return;
+    const base = parseFloat(sliderBase.value);
+    const beat = parseFloat(sliderBeat.value);
+    updateVoiceFreq(voiceB, base + beat);
+  });
+
+  // === Waveform ===
+  function drawWaveform() {
+    const bufLen    = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufLen);
+    const W = canvas.width, H = canvas.height;
+
+    function draw() {
+      animId = requestAnimationFrame(draw);
+      analyser.getByteTimeDomainData(dataArray);
+
+      canvasCtx.fillStyle = '#0c1e30';
+      canvasCtx.fillRect(0, 0, W, H);
+
+      canvasCtx.strokeStyle = '#1e3050';
+      canvasCtx.lineWidth = 1;
+      canvasCtx.beginPath();
+      canvasCtx.moveTo(0, H / 2);
+      canvasCtx.lineTo(W, H / 2);
+      canvasCtx.stroke();
+
+      canvasCtx.strokeStyle = '#7aa8ff';
+      canvasCtx.lineWidth = 2;
+      canvasCtx.shadowColor = '#3366ff';
+      canvasCtx.shadowBlur = 8;
+      canvasCtx.beginPath();
+      const sw = W / bufLen;
+      let x = 0;
+      for (let i = 0; i < bufLen; i++) {
+        const v = dataArray[i] / 128.0;
+        const y = (v * H) / 2;
+        i === 0 ? canvasCtx.moveTo(x, y) : canvasCtx.lineTo(x, y);
+        x += sw;
+      }
+      canvasCtx.stroke();
+      canvasCtx.shadowBlur = 0;
+    }
+    draw();
+  }
+
+  // === Toggle ===
+  btn.addEventListener('click', () => {
+    if (!isPlaying) {
+      startAudio();
+      btn.textContent = '■ STOP';
+      btn.classList.add('playing');
+    } else {
+      stopAudio();
+      btn.textContent = '▶ START';
+      btn.classList.remove('playing');
+    }
+    isPlaying = !isPlaying;
+  });
+
+  updateInfo();
+</script>
+</html>
