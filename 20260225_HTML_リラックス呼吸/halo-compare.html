@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>光輪アレンジ比較</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    min-height: 100vh;
+    background: #0d0d1f;
+    font-family: 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    gap: 16px;
+  }
+
+  h1 {
+    color: rgba(255,255,255,0.4);
+    font-size: 0.82rem;
+    letter-spacing: 0.16em;
+    font-weight: 400;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    width: min(860px, 100%);
+  }
+
+  .card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 20px;
+    padding: 28px 16px 22px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 22px;
+  }
+
+  .stage {
+    width: 120px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .label {
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.38);
+    letter-spacing: 0.12em;
+  }
+
+  /* ===== 1. シングル（基本） ===== */
+  .single {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    border: 2px solid rgba(160,200,255,0.85);
+    box-shadow: 0 0 14px rgba(120,180,255,0.35),
+                inset 0 0 14px rgba(120,180,255,0.1);
+    animation: singleBreath 5s ease-in-out infinite;
+  }
+
+  @keyframes singleBreath {
+    0%, 100% { transform: scale(0.45); opacity: 0.3; }
+    50%       { transform: scale(1);    opacity: 1; }
+  }
+
+  /* ===== 2. ダブル（2重輪・位相ずらし） ===== */
+  .double-outer {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(160,200,255,0.7);
+    animation: doubleOuter 5s ease-in-out infinite;
+  }
+
+  .double-inner {
+    position: absolute;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(180,210,255,0.85);
+    animation: doubleInner 5s ease-in-out infinite;
+  }
+
+  @keyframes doubleOuter {
+    0%, 100% { transform: scale(0.45); opacity: 0.25; }
+    50%       { transform: scale(1);    opacity: 0.8; }
+  }
+
+  @keyframes doubleInner {
+    0%, 100% { transform: scale(1);    opacity: 0.85; }
+    50%       { transform: scale(0.5); opacity: 0.25; }
+  }
+
+  /* ===== 3. グロウ（光が滲む） ===== */
+  .glow {
+    width: 62px;
+    height: 62px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(180,210,255,0.6);
+    animation: glowBreath 5s ease-in-out infinite;
+  }
+
+  @keyframes glowBreath {
+    0%, 100% {
+      transform: scale(0.75);
+      opacity: 0.35;
+      box-shadow: 0 0 4px rgba(120,180,255,0.2),
+                  inset 0 0 4px rgba(120,180,255,0.1);
+    }
+    50% {
+      transform: scale(1);
+      opacity: 1;
+      box-shadow: 0 0 32px rgba(120,180,255,0.8),
+                  0 0 64px rgba(100,160,255,0.35),
+                  inset 0 0 24px rgba(140,190,255,0.25);
+    }
+  }
+
+  /* ===== 4. 拡散（外へ広がってフェード） ===== */
+  .spread-wrap {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .spread-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 1.5px solid rgba(160,200,255,0.8);
+    animation: spreadOut 4s ease-out infinite;
+  }
+
+  .spread-ring:nth-child(1) { animation-delay: 0s; }
+  .spread-ring:nth-child(2) { animation-delay: 2s; }
+
+  @keyframes spreadOut {
+    0%   { width: 28px; height: 28px; opacity: 0.9; }
+    100% { width: 108px; height: 108px; opacity: 0; }
+  }
+
+  /* ===== 5. 太さ呼吸（border-width変化） ===== */
+  .thick {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: 2px solid rgba(160,205,255,0.8);
+    box-shadow: 0 0 12px rgba(120,180,255,0.25);
+    animation: thickBreath 5s ease-in-out infinite;
+  }
+
+  @keyframes thickBreath {
+    0%, 100% {
+      transform: scale(0.82);
+      border-width: 1.5px;
+      opacity: 0.35;
+      box-shadow: 0 0 4px rgba(120,180,255,0.1);
+    }
+    50% {
+      transform: scale(1);
+      border-width: 8px;
+      opacity: 0.95;
+      box-shadow: 0 0 18px rgba(120,180,255,0.4);
+    }
+  }
+
+  /* ===== 6. 色移り（blue→purple→pink） ===== */
+  .colorshift {
+    width: 66px;
+    height: 66px;
+    border-radius: 50%;
+    animation: colorBreath 5s ease-in-out infinite;
+  }
+
+  @keyframes colorBreath {
+    0% {
+      transform: scale(0.45);
+      opacity: 0.35;
+      border: 2px solid rgba(120,180,255,0.8);
+      box-shadow: 0 0 10px rgba(120,180,255,0.3);
+    }
+    30% {
+      border-color: rgba(160,120,255,0.9);
+      box-shadow: 0 0 20px rgba(160,120,255,0.4);
+    }
+    50% {
+      transform: scale(1);
+      opacity: 1;
+      border: 2px solid rgba(220,140,240,0.95);
+      box-shadow: 0 0 28px rgba(220,140,240,0.5);
+    }
+    70% {
+      border-color: rgba(160,120,255,0.9);
+      box-shadow: 0 0 20px rgba(160,120,255,0.4);
+    }
+    100% {
+      transform: scale(0.45);
+      opacity: 0.35;
+      border: 2px solid rgba(120,180,255,0.8);
+      box-shadow: 0 0 10px rgba(120,180,255,0.3);
+    }
+  }
+
+  @media (max-width: 600px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<h1>光輪アレンジ比較</h1>
+
+<div class="grid">
+
+  <!-- 1. シングル -->
+  <div class="card">
+    <div class="stage">
+      <div class="single"></div>
+    </div>
+    <div class="label">シングル</div>
+  </div>
+
+  <!-- 2. ダブル -->
+  <div class="card">
+    <div class="stage">
+      <div class="double-outer"></div>
+      <div class="double-inner"></div>
+    </div>
+    <div class="label">ダブル</div>
+  </div>
+
+  <!-- 3. グロウ -->
+  <div class="card">
+    <div class="stage">
+      <div class="glow"></div>
+    </div>
+    <div class="label">グロウ</div>
+  </div>
+
+  <!-- 4. 拡散 -->
+  <div class="card">
+    <div class="stage">
+      <div class="spread-wrap">
+        <div class="spread-ring"></div>
+        <div class="spread-ring"></div>
+      </div>
+    </div>
+    <div class="label">拡散</div>
+  </div>
+
+  <!-- 5. 太さ呼吸 -->
+  <div class="card">
+    <div class="stage">
+      <div class="thick"></div>
+    </div>
+    <div class="label">太さ呼吸</div>
+  </div>
+
+  <!-- 6. 色移り -->
+  <div class="card">
+    <div class="stage">
+      <div class="colorshift"></div>
+    </div>
+    <div class="label">色移り</div>
+  </div>
+
+</div>
+
+</body>
+</html>

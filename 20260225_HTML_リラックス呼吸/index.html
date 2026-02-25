@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>呼吸</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', sans-serif;
+    overflow: hidden;
+  }
+
+  #bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+  }
+
+  #container {
+    position: relative;
+    z-index: 1;
+    width: min(440px, 88vw);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  /* テキストウィンドウ */
+  #text-window {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.07);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 20px;
+    padding: 36px 40px;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 1.4s ease;
+    pointer-events: none;
+  }
+
+  #text-window.visible {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  #text-display {
+    font-size: 1.05rem;
+    line-height: 2.2;
+    color: rgba(255, 255, 255, 0.82);
+    letter-spacing: 0.10em;
+    white-space: pre-wrap;
+  }
+
+  /* ボタン */
+  #buttons {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    opacity: 0;
+    transition: opacity 1.6s ease;
+    pointer-events: none;
+  }
+
+  #buttons.visible {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .btn {
+    appearance: none;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.10);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 14px;
+    padding: 16px 28px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.88);
+    cursor: pointer;
+    letter-spacing: 0.08em;
+    transition: background 0.3s ease, transform 0.25s ease;
+  }
+
+  .btn:hover {
+    background: rgba(255, 255, 255, 0.18);
+    transform: scale(1.02);
+  }
+
+  .btn:active {
+    transform: scale(0.97);
+  }
+
+  /* 光輪 */
+  #halo {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 2px solid rgba(160, 200, 255, 0.85);
+    box-shadow: 0 0 18px rgba(120, 180, 255, 0.4),
+                inset 0 0 18px rgba(120, 180, 255, 0.12);
+    opacity: 0;
+    transform: scale(0.45);
+    will-change: transform, opacity;
+  }
+</style>
+</head>
+<body>
+
+<div id="bg"></div>
+
+<div id="container">
+  <div id="text-window">
+    <div id="text-display"></div>
+  </div>
+  <div id="halo"></div>
+  <div id="buttons">
+    <button class="btn" id="btn-calm">落ち着いた</button>
+    <button class="btn" id="btn-restart">もう一度呼吸をする</button>
+  </div>
+</div>
+
+<script>
+// ======== グラデーション定義（深夜 → 夜明け） ========
+const colorFrames = [
+  { t: 0.00, top: [10,  10,  28],  bottom: [22,  14,  58]  },
+  { t: 0.10, top: [14,   9,  38],  bottom: [34,  16,  70]  },
+  { t: 0.22, top: [20,   8,  52],  bottom: [54,  19,  84]  },
+  { t: 0.34, top: [30,   8,  66],  bottom: [84,  23,  88]  },
+  { t: 0.45, top: [46,  12,  78],  bottom: [120, 36,  94]  },
+  { t: 0.55, top: [68,  20,  86],  bottom: [155, 52,  98]  },
+  { t: 0.64, top: [100, 36,  92],  bottom: [182, 70,  90]  },
+  { t: 0.72, top: [135, 55,  94],  bottom: [205, 88,  80]  },
+  { t: 0.80, top: [162, 76,  90],  bottom: [218, 112, 80]  },
+  { t: 0.87, top: [182, 96,  88],  bottom: [228, 138, 92]  },
+  { t: 0.93, top: [196, 108, 88],  bottom: [236, 164, 108] },
+  { t: 1.00, top: [205, 118, 88],  bottom: [242, 192, 118] },
+];
+
+// ease-out cubic: 最初速く、後半ゆっくり
+function easeProgress(t) {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function getColors(progress) {
+  const p = easeProgress(Math.min(Math.max(progress, 0), 1));
+  if (p >= 1) {
+    const last = colorFrames[colorFrames.length - 1];
+    return { top: last.top, bottom: last.bottom };
+  }
+  let i = 0;
+  for (let j = 0; j < colorFrames.length - 1; j++) {
+    if (p <= colorFrames[j + 1].t) { i = j; break; }
+    i = j;
+  }
+  const a = colorFrames[i], b = colorFrames[i + 1];
+  const local = (p - a.t) / (b.t - a.t);
+  return {
+    top:    a.top.map((v, k) => Math.round(lerp(v, b.top[k], local))),
+    bottom: a.bottom.map((v, k) => Math.round(lerp(v, b.bottom[k], local))),
+  };
+}
+
+function applyGradient(progress) {
+  const { top, bottom } = getColors(progress);
+  bg.style.background =
+    `linear-gradient(180deg, rgb(${top}) 0%, rgb(${bottom}) 100%)`;
+}
+
+// ======== タイプライター ========
+const INTRO = '姿勢を正して、\nゆっくりと呼吸をしてみましょう。';
+const BASE_MS = 85;
+const PUNCT  = { '。': 180, '、': 110 };
+
+function typeText(text) {
+  return new Promise(resolve => {
+    textDisplay.innerHTML = '';
+    let i = 0;
+    function tick() {
+      if (i >= text.length) { resolve(); return; }
+      const ch = text[i++];
+      textDisplay.innerHTML += ch === '\n' ? '<br>' : ch;
+      setTimeout(tick, BASE_MS + (PUNCT[ch] || 0));
+    }
+    tick();
+  });
+}
+
+// ======== DOM ========
+const bg          = document.getElementById('bg');
+const textWindow  = document.getElementById('text-window');
+const textDisplay = document.getElementById('text-display');
+const haloEl      = document.getElementById('halo');
+const buttons     = document.getElementById('buttons');
+const btnCalm     = document.getElementById('btn-calm');
+const btnRestart  = document.getElementById('btn-restart');
+
+const DAWN_MS        = 180000;
+const BREATH_START   = 5;   // 最初の呼吸周期（秒）
+const BREATH_END     = 12;  // 最後の呼吸周期（秒）
+let rafId          = null;
+let haloPhase      = -Math.PI / 2; // sin=-1 = 最小サイズから開始
+let lastTickTime   = null;
+let dawnComplete   = false;
+
+function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ======== メインフロー ========
+async function start() {
+  if (rafId) cancelAnimationFrame(rafId);
+
+  // リセット
+  buttons.classList.remove('visible');
+  textWindow.classList.remove('visible');
+  textDisplay.innerHTML = '';
+  haloEl.style.transition = '';
+  haloEl.style.opacity    = '0';
+  haloEl.style.transform  = 'scale(0.45)';
+  haloPhase    = -Math.PI / 2;
+  lastTickTime = null;
+  dawnComplete = false;
+  applyGradient(0);
+
+  await wait(50);
+
+  // イントロテキスト
+  textWindow.classList.add('visible');
+  await wait(500);
+  await typeText(INTRO);
+  await wait(2800);
+
+  // テキストフェードアウト
+  textWindow.classList.remove('visible');
+  await wait(1500);
+
+  // 夜明け＋光輪アニメーション開始
+  const dawnStart = performance.now();
+
+  function tick(now) {
+    const elapsed  = (now - dawnStart) / 1000;          // 経過秒
+    const progress = Math.min(elapsed / (DAWN_MS / 1000), 1);
+
+    // 背景グラデーション
+    applyGradient(progress);
+
+    // 呼吸フェーズを進める
+    const delta  = lastTickTime ? (now - lastTickTime) / 1000 : 0;
+    const period = lerp(BREATH_START, BREATH_END, easeProgress(Math.min(progress, 1))); // 5s→10s（ease-out）
+    haloPhase   += (2 * Math.PI / period) * delta;
+    lastTickTime = now;
+
+    // sin波 → scale・opacity
+    const sinVal   = (Math.sin(haloPhase) + 1) / 2;          // 0〜1
+    const fadeIn   = Math.min(elapsed / 1.5, 1);              // 最初1.5sでフェードイン
+    const scale    = lerp(0.35, 1.7, sinVal);
+    const opacity  = lerp(0.28, 1.0, sinVal) * fadeIn;
+
+    haloEl.style.transform = `scale(${scale})`;
+    haloEl.style.opacity   = opacity;
+
+    // 60秒経過したらフラグを立てる（呼吸は続ける）
+    if (progress >= 1) dawnComplete = true;
+
+    // 最小サイズに達したらフェードアウト
+    if (dawnComplete && sinVal < 0.03) {
+      haloEl.style.transition = 'opacity 1.4s ease, transform 1.4s ease';
+      haloEl.style.opacity    = '0';
+      haloEl.style.transform  = 'scale(0.45)';
+      setTimeout(() => buttons.classList.add('visible'), 1400);
+      return;
+    }
+
+    rafId = requestAnimationFrame(tick);
+  }
+
+  rafId = requestAnimationFrame(tick);
+}
+
+// ======== ボタン ========
+btnCalm.addEventListener('click', () => {
+  buttons.classList.remove('visible');
+});
+
+btnRestart.addEventListener('click', async () => {
+  buttons.classList.remove('visible');
+  if (rafId) cancelAnimationFrame(rafId);
+
+  // 3秒かけて暗闇へ
+  const fadeStart = performance.now();
+  await new Promise(resolve => {
+    function fadeTick(now) {
+      const p = Math.min((now - fadeStart) / 3000, 1);
+      applyGradient(1 - p);
+      if (p < 1) requestAnimationFrame(fadeTick);
+      else resolve();
+    }
+    requestAnimationFrame(fadeTick);
+  });
+
+  start();
+});
+
+// ======== 起動 ========
+start();
+</script>
+</body>
+</html>
