@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>harmonic-detune — 倍音デチューン実験 1.5</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0c0c0c;
+      color: #ccc;
+      font: 13px/1.6 'Courier New', monospace;
+      padding: 22px;
+    }
+
+    header { margin-bottom: 20px; }
+    h1 { font-size: 1.0em; color: #999; letter-spacing: 0.05em; }
+    .subtitle { color: #666; font-size: 0.8em; margin-top: 3px; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 252px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    /* ── Panel ── */
+    .panel {
+      background: #111;
+      border: 1px solid #1e1e1e;
+      border-radius: 6px;
+      padding: 16px;
+    }
+    .panel-title {
+      font-size: 0.7em;
+      color: #777;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #1e1e1e;
+    }
+
+    .ctrl { margin-bottom: 13px; }
+    .ctrl-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.79em;
+      color: #999;
+      margin-bottom: 5px;
+    }
+    .ctrl-label .val { color: #5ba; }
+    .ctrl-hint { font-size: 0.69em; color: #555; margin-top: 3px; }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 2px;
+      background: #252525;
+      border-radius: 1px;
+      outline: none;
+      cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      background: #5ba;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .btn-row { display: flex; gap: 5px; margin-top: 4px; }
+    .mode-btn {
+      flex: 1;
+      background: #161616;
+      border: 1px solid #272727;
+      color: #888;
+      padding: 5px 4px;
+      border-radius: 3px;
+      cursor: pointer;
+      font: 10px 'Courier New', monospace;
+      text-align: center;
+      transition: all 0.1s;
+    }
+    .mode-btn:hover { background: #1e1e1e; color: #bbb; }
+    .mode-btn.on { background: #0e2219; border-color: #2a5a3a; color: #5ba; }
+
+    .clear-btn {
+      width: 100%;
+      margin-top: 14px;
+      background: #141414;
+      border: 1px solid #272727;
+      color: #888;
+      padding: 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font: 11px 'Courier New', monospace;
+    }
+    .clear-btn:hover { border-color: #553333; color: #a55; }
+
+    /* ── Right column ── */
+    .right { display: flex; flex-direction: column; gap: 10px; }
+
+    canvas {
+      display: block;
+      background: #070707;
+      border: 1px solid #181818;
+      border-radius: 4px;
+    }
+
+    /* ── Piano ── */
+    .piano {
+      position: relative;
+      display: flex;
+      height: 108px;
+      user-select: none;
+    }
+
+    .wk {
+      flex: 1;
+      background: linear-gradient(160deg, #d0d0d0, #e8e8e8);
+      border: 1px solid #999;
+      border-top: none;
+      border-radius: 0 0 4px 4px;
+      cursor: pointer;
+      position: relative;
+      z-index: 1;
+      transition: background 0.05s, transform 0.05s;
+    }
+    .wk + .wk { margin-left: 1px; }
+    .wk:hover { background: linear-gradient(160deg, #b0b0b0, #c8c8c8); }
+    .wk.on { background: linear-gradient(160deg, #5dd, #8ef); transform: translateY(2px); }
+
+    .wk-label {
+      position: absolute;
+      bottom: 7px;
+      left: 0; right: 0;
+      text-align: center;
+      font-size: 8px;
+      color: #bbb;
+      pointer-events: none;
+    }
+
+    .bk {
+      position: absolute;
+      top: 0;
+      background: linear-gradient(160deg, #1c1c1c, #2e2e2e);
+      width: 7.8%;
+      height: 60%;
+      border-radius: 0 0 4px 4px;
+      cursor: pointer;
+      z-index: 2;
+      border: 1px solid #111;
+      border-top: none;
+      transition: background 0.05s;
+    }
+    .bk:hover { background: linear-gradient(160deg, #2a2a2a, #3c3c3c); }
+    .bk.on { background: linear-gradient(160deg, #2a7a5a, #3a9a6a); }
+
+    /* ── Chips ── */
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      min-height: 28px;
+      align-items: center;
+    }
+    .chip {
+      background: #0c1f16;
+      border: 1px solid #1e4a30;
+      color: #5ba;
+      border-radius: 9px;
+      padding: 1px 9px;
+      font-size: 0.75em;
+      transition: opacity 0.8s;
+    }
+    .chip.dying { opacity: 0.15; }
+
+    .footer {
+      display: flex;
+      gap: 16px;
+      font-size: 0.72em;
+      color: #666;
+    }
+    .footer span { color: #5ba; }
+
+    .kbd-hint { font-size: 0.72em; color: #555; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>harmonic-detune — 倍音デチューン実験 (step 1.5)</h1>
+  <p class="subtitle">ADSR個別減衰 × 倍音デチューン → 高次うねりが先に消え、低次の静かなうねりだけ残る</p>
+</header>
+
+<div class="layout">
+
+  <!-- ── Left: Controls ── -->
+  <div class="panel">
+    <div class="panel-title">パラメータ</div>
+
+    <div class="ctrl">
+      <div class="ctrl-label">デチューン量 <span class="val" id="detuneVal">1.0 Hz</span></div>
+      <input type="range" id="detuneSlider" min="0" max="20.0" step="0.1" value="1.0">
+      <div class="ctrl-hint">各倍音に ±この量のランダムオフセット（鍵盤を押すたび再抽選）</div>
+    </div>
+
+    <div class="ctrl">
+      <div class="ctrl-label">倍音スケール</div>
+      <div class="btn-row">
+        <button class="mode-btn" id="btnFlat">均一</button>
+        <button class="mode-btn on" id="btnProp">×n 比例</button>
+      </div>
+      <div class="ctrl-hint">比例: n倍音のデチューン = 基本量 × n（高次ほど大きくずれる）</div>
+    </div>
+
+    <div class="ctrl">
+      <div class="ctrl-label">減衰 α <span class="val" id="alphaVal">0.8</span></div>
+      <input type="range" id="alphaSlider" min="0.1" max="2.0" step="0.1" value="0.8">
+      <div class="ctrl-hint">0.1=オルガン / 0.8=ピアノ / 2.0=マリンバ</div>
+    </div>
+
+    <div class="ctrl">
+      <div class="ctrl-label">サスティン（n=1） <span class="val" id="sustainVal">4.0 s</span></div>
+      <input type="range" id="sustainSlider" min="0.5" max="10.0" step="0.5" value="4.0">
+      <div class="ctrl-hint">基音の減衰時間。高次はこれより短い</div>
+    </div>
+
+    <div class="ctrl">
+      <div class="ctrl-label">倍音数 <span class="val" id="harmonicsVal">7</span></div>
+      <input type="range" id="harmonicsSlider" min="1" max="12" step="1" value="7">
+    </div>
+
+    <button class="clear-btn" id="clearBtn">全音クリア</button>
+  </div>
+
+  <!-- ── Right: Viz + Piano ── -->
+  <div class="right">
+    <canvas id="waveCanvas" width="660" height="130"></canvas>
+    <canvas id="harmCanvas"  width="660" height="110"></canvas>
+
+    <div id="piano" class="piano"></div>
+    <div class="chips" id="chips"></div>
+
+    <div class="footer">
+      <div>アクティブ: <span id="activeCount">0</span> 音</div>
+      <div>ctx: <span id="ctxTime">—</span></div>
+    </div>
+    <div class="kbd-hint">
+      キーボード: A=C4 S=D4 D=E4 F=F4 G=G4 H=A4 J=B4 K=C5 / W=C# E=D# T=F# Y=G# U=A#
+    </div>
+  </div>
+
+</div>
+
+<script>
+'use strict';
+
+// ── Audio context ──────────────────────────────────────────────────────
+const AC = window.AudioContext || window.webkitAudioContext;
+let ctx = null, analyser = null, analyserBuf = null;
+
+function ensureCtx() {
+  if (!ctx) {
+    ctx = new AC();
+    analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.65;
+    analyserBuf = new Float32Array(analyser.fftSize);
+    analyser.connect(ctx.destination);
+  }
+  if (ctx.state === 'suspended') ctx.resume();
+}
+
+// ── Parameters ────────────────────────────────────────────────────────
+let proportional = true;
+
+const $ = id => document.getElementById(id);
+
+const sliderDefs = [
+  { id: 'detuneSlider',   valId: 'detuneVal',   fmt: v => v.toFixed(1) + ' Hz' },
+  { id: 'alphaSlider',    valId: 'alphaVal',     fmt: v => v.toFixed(1) },
+  { id: 'sustainSlider',  valId: 'sustainVal',   fmt: v => v.toFixed(1) + ' s' },
+  { id: 'harmonicsSlider',valId: 'harmonicsVal', fmt: v => String(v) },
+];
+sliderDefs.forEach(({ id, valId, fmt }) => {
+  const el = $(id), valEl = $(valId);
+  valEl.textContent = fmt(parseFloat(el.value));
+  el.addEventListener('input', () => { valEl.textContent = fmt(parseFloat(el.value)); });
+});
+
+$('btnFlat').addEventListener('click', () => {
+  proportional = false;
+  $('btnFlat').classList.add('on');
+  $('btnProp').classList.remove('on');
+});
+$('btnProp').addEventListener('click', () => {
+  proportional = true;
+  $('btnFlat').classList.remove('on');
+  $('btnProp').classList.add('on');
+});
+
+function getParams() {
+  return {
+    detuneHz:     parseFloat($('detuneSlider').value),
+    alpha:        parseFloat($('alphaSlider').value),
+    sustainTime:  parseFloat($('sustainSlider').value),
+    numHarmonics: parseInt($('harmonicsSlider').value),
+    proportional,
+  };
+}
+
+// ── Key definitions ────────────────────────────────────────────────────
+// bpos: index of the white key to the left (0-based among white keys)
+const KEY_DEFS = [
+  { name: 'C4',  freq: 261.63, type: 'w', kbd: 'a' },
+  { name: 'C#4', freq: 277.18, type: 'b', kbd: 'w', bpos: 1 },
+  { name: 'D4',  freq: 293.66, type: 'w', kbd: 's' },
+  { name: 'D#4', freq: 311.13, type: 'b', kbd: 'e', bpos: 2 },
+  { name: 'E4',  freq: 329.63, type: 'w', kbd: 'd' },
+  { name: 'F4',  freq: 349.23, type: 'w', kbd: 'f' },
+  { name: 'F#4', freq: 369.99, type: 'b', kbd: 't', bpos: 4 },
+  { name: 'G4',  freq: 392.00, type: 'w', kbd: 'g' },
+  { name: 'G#4', freq: 415.30, type: 'b', kbd: 'y', bpos: 5 },
+  { name: 'A4',  freq: 440.00, type: 'w', kbd: 'h' },
+  { name: 'A#4', freq: 466.16, type: 'b', kbd: 'u', bpos: 6 },
+  { name: 'B4',  freq: 493.88, type: 'w', kbd: 'j' },
+  { name: 'C5',  freq: 523.25, type: 'w', kbd: 'k' },
+];
+
+// ── Piano builder ──────────────────────────────────────────────────────
+const pianoEl  = $('piano');
+const keyElems = {};  // name  → DOM element
+const kbdMap   = {};  // char  → KEY_DEFS entry
+
+const whiteKeys = KEY_DEFS.filter(k => k.type === 'w');
+const blackKeys = KEY_DEFS.filter(k => k.type === 'b');
+const WKW = 100 / whiteKeys.length; // each white key width in %
+const BKW = 7.8;                    // black key width in %
+
+whiteKeys.forEach(note => {
+  const el = document.createElement('div');
+  el.className = 'wk';
+  el.innerHTML = `<span class="wk-label">${note.kbd.toUpperCase()}</span>`;
+  el.addEventListener('mousedown', e => { e.preventDefault(); startNote(note); });
+  pianoEl.appendChild(el);
+  keyElems[note.name] = el;
+  kbdMap[note.kbd] = note;
+});
+
+blackKeys.forEach(note => {
+  const el = document.createElement('div');
+  el.className = 'bk';
+  el.style.left = (note.bpos * WKW - BKW / 2) + '%';
+  el.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); startNote(note); });
+  pianoEl.appendChild(el);
+  keyElems[note.name] = el;
+  kbdMap[note.kbd] = note;
+});
+
+// ── Active notes ───────────────────────────────────────────────────────
+const activeNotes = new Map(); // id → noteData
+let noteCounter = 0;
+let latestId    = null;
+
+function updateCountDisplay() {
+  $('activeCount').textContent = activeNotes.size;
+}
+
+// ── Play note ──────────────────────────────────────────────────────────
+function startNote(keyInfo) {
+  ensureCtx();
+  const p   = getParams();
+  const id  = ++noteCounter;
+  const now = ctx.currentTime;
+
+  const masterGain = ctx.createGain();
+  // Scale volume: louder base but normalize for harmonic count
+  masterGain.gain.value = 0.38 / Math.sqrt(p.numHarmonics);
+  masterGain.connect(analyser);
+
+  const gainNodes  = [];
+  const detunes    = [];
+
+  for (let n = 1; n <= p.numHarmonics; n++) {
+    // Random detuning — proportional mode scales by n
+    const maxDt  = p.proportional ? p.detuneHz * n : p.detuneHz;
+    const dtHz   = (Math.random() * 2 - 1) * maxDt;
+    detunes.push(dtHz);
+
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.frequency.value = keyInfo.freq * n + dtHz;
+    osc.type = 'sine';
+
+    // Amplitude: 1/n harmonic rolloff
+    const amp     = 1.0 / n;
+    const attackT = 0.006;
+    const decayT  = p.sustainTime / Math.pow(n, p.alpha);
+
+    // Schedule envelope — IMPORTANT: setValueAtTime before ramps
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(amp, now + attackT);
+    gain.gain.exponentialRampToValueAtTime(1e-5, now + attackT + decayT);
+
+    osc.connect(gain);
+    gain.connect(masterGain);
+
+    // start() MUST come before stop()
+    osc.start(now);
+    osc.stop(now + attackT + decayT + 0.08);
+
+    gainNodes.push({ amp, decayTime: decayT, attackTime: attackT });
+  }
+
+  // UI chip
+  const chip = document.createElement('div');
+  chip.className = 'chip';
+  chip.textContent = keyInfo.name;
+  $('chips').appendChild(chip);
+
+  // Key visual
+  const keyEl = keyElems[keyInfo.name];
+  if (keyEl) keyEl.classList.add('on');
+
+  const noteData = {
+    id, masterGain, gainNodes, detunes,
+    chip, keyEl,
+    startTime: now,
+    sustainTime: p.sustainTime,
+    name: keyInfo.name,
+  };
+  activeNotes.set(id, noteData);
+  latestId = id;
+  updateCountDisplay();
+
+  // Cleanup after n=1 decay finishes
+  setTimeout(() => {
+    chip.classList.add('dying');
+    if (keyEl) keyEl.classList.remove('on');
+    masterGain.disconnect();
+    setTimeout(() => {
+      activeNotes.delete(id);
+      chip.remove();
+      if (latestId === id) latestId = null;
+      updateCountDisplay();
+    }, 800);
+  }, (p.sustainTime + 0.2) * 1000);
+}
+
+// ── Clear all ──────────────────────────────────────────────────────────
+function clearAll() {
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  activeNotes.forEach(({ masterGain, chip, keyEl }) => {
+    masterGain.gain.setValueAtTime(masterGain.gain.value, now);
+    masterGain.gain.linearRampToValueAtTime(0, now + 0.08);
+    setTimeout(() => masterGain.disconnect(), 200);
+    chip.remove();
+    if (keyEl) keyEl.classList.remove('on');
+  });
+  activeNotes.clear();
+  latestId = null;
+  updateCountDisplay();
+}
+$('clearBtn').addEventListener('click', clearAll);
+
+// ── Keyboard input ─────────────────────────────────────────────────────
+const heldKeys = new Set();
+document.addEventListener('keydown', e => {
+  if (e.repeat) return;
+  const note = kbdMap[e.key.toLowerCase()];
+  if (note && !heldKeys.has(e.key)) {
+    heldKeys.add(e.key);
+    startNote(note);
+  }
+});
+document.addEventListener('keyup', e => { heldKeys.delete(e.key); });
+// Note: keyup does NOT stop the note — notes decay naturally (sustain-pedal feel)
+
+// ── Canvas drawing ─────────────────────────────────────────────────────
+const waveCanvas = $('waveCanvas');
+const waveCtx2d  = waveCanvas.getContext('2d');
+const harmCanvas = $('harmCanvas');
+const harmCtx2d  = harmCanvas.getContext('2d');
+
+function drawWaveform() {
+  const W = waveCanvas.width, H = waveCanvas.height;
+  waveCtx2d.clearRect(0, 0, W, H);
+
+  if (!analyser) {
+    waveCtx2d.fillStyle = '#444';
+    waveCtx2d.font = '11px Courier New';
+    waveCtx2d.textAlign = 'center';
+    waveCtx2d.fillText('← キーを押して音を出す', W / 2, H / 2);
+    return;
+  }
+
+  analyser.getFloatTimeDomainData(analyserBuf);
+
+  // Center baseline
+  waveCtx2d.strokeStyle = '#141414';
+  waveCtx2d.lineWidth = 1;
+  waveCtx2d.beginPath();
+  waveCtx2d.moveTo(0, H / 2);
+  waveCtx2d.lineTo(W, H / 2);
+  waveCtx2d.stroke();
+
+  // Waveform
+  waveCtx2d.strokeStyle = '#4aaa77';
+  waveCtx2d.lineWidth = 1.2;
+  waveCtx2d.beginPath();
+  const step = W / analyserBuf.length;
+  for (let i = 0; i < analyserBuf.length; i++) {
+    const x = i * step;
+    const y = H / 2 - analyserBuf[i] * H * 0.44;
+    if (i === 0) waveCtx2d.moveTo(x, y);
+    else         waveCtx2d.lineTo(x, y);
+  }
+  waveCtx2d.stroke();
+
+  waveCtx2d.fillStyle = '#555';
+  waveCtx2d.font = '9px Courier New';
+  waveCtx2d.textAlign = 'left';
+  waveCtx2d.fillText('波形 oscilloscope', 8, 14);
+}
+
+// Calculate current harmonic amplitude ratios for the latest note
+// Uses the same exponential ramp formula as Web Audio API:
+//   V(t) = amp * (1e-5 / amp)^(t / decayTime)  during decay phase
+function getLatestHarmonicRatios() {
+  if (!latestId || !ctx) return null;
+  const nd = activeNotes.get(latestId);
+  if (!nd) return null;
+
+  const elapsed = ctx.currentTime - nd.startTime;
+  return nd.gainNodes.map(({ amp, decayTime, attackTime }) => {
+    if (elapsed < attackTime) return elapsed / attackTime;       // attack ramp
+    const t = elapsed - attackTime;
+    if (t >= decayTime) return 0;
+    return Math.pow(1e-5 / amp, t / decayTime);                 // matches exponentialRamp
+  });
+}
+
+function drawHarmonics() {
+  const W = harmCanvas.width, H = harmCanvas.height;
+  harmCtx2d.clearRect(0, 0, W, H);
+
+  const ratios = getLatestHarmonicRatios();
+  const nd     = latestId ? activeNotes.get(latestId) : null;
+
+  if (!ratios || !nd) {
+    harmCtx2d.fillStyle = '#444';
+    harmCtx2d.font = '9px Courier New';
+    harmCtx2d.textAlign = 'center';
+    harmCtx2d.fillText('倍音エンベロープ（最後に押した音）', W / 2, H / 2);
+    return;
+  }
+
+  const N       = ratios.length;
+  const padX    = 30;
+  const availW  = W - padX * 2;
+  const barW    = Math.min(52, Math.floor(availW / N) - 6);
+  const gap     = Math.floor((availW - barW * N) / (N + 1));
+  const labelH  = 22; // height reserved at bottom for labels
+  const topH    = 16; // header
+  const maxBarH = H - topH - labelH;
+
+  // Header
+  harmCtx2d.fillStyle = '#666';
+  harmCtx2d.font = '9px Courier New';
+  harmCtx2d.textAlign = 'left';
+  harmCtx2d.fillText('倍音エンベロープ — ' + nd.name, 8, 12);
+
+  ratios.forEach((ratio, i) => {
+    const x     = padX + gap + i * (barW + gap);
+    const barH  = Math.max(0, ratio * maxBarH);
+    const y     = topH + maxBarH - barH;
+
+    // Bar color: ratio 1→0, hue shifts from green to dim
+    const hue  = 155 - i * 10;
+    const sat  = 15 + ratio * 45;
+    const lit  = 10 + ratio * 28;
+    harmCtx2d.fillStyle = `hsl(${hue}, ${sat}%, ${lit}%)`;
+    harmCtx2d.fillRect(x, y, barW, barH);
+
+    // Top border glow when alive
+    if (ratio > 0.02) {
+      harmCtx2d.strokeStyle = `hsl(${hue}, ${sat + 10}%, ${lit + 15}%)`;
+      harmCtx2d.lineWidth = 1;
+      harmCtx2d.beginPath();
+      harmCtx2d.moveTo(x, y);
+      harmCtx2d.lineTo(x + barW, y);
+      harmCtx2d.stroke();
+    }
+
+    // n= label
+    harmCtx2d.fillStyle = '#666';
+    harmCtx2d.font = '8px Courier New';
+    harmCtx2d.textAlign = 'center';
+    harmCtx2d.fillText('n=' + (i + 1), x + barW / 2, H - 10);
+
+    // Detuning label (±Hz)
+    const dtHz = nd.detunes[i];
+    if (dtHz !== undefined) {
+      const sign = dtHz >= 0 ? '+' : '';
+      harmCtx2d.fillStyle = dtHz >= 0 ? '#2a4030' : '#3a2828';
+      harmCtx2d.font = '7px Courier New';
+      harmCtx2d.fillText(sign + dtHz.toFixed(1), x + barW / 2, H - 1);
+    }
+  });
+}
+
+// ── Animation loop ─────────────────────────────────────────────────────
+function loop() {
+  drawWaveform();
+  drawHarmonics();
+  if (ctx) {
+    $('ctxTime').textContent = ctx.currentTime.toFixed(1) + 's';
+  }
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

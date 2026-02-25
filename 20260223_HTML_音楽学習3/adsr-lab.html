@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ADSR Lab — 倍音が消えていく</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: radial-gradient(ellipse at 30% 20%, #1e3a6e, #112244, #1a2a40);
+      color: #e0e8ff;
+      font-family: 'Helvetica Neue', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      gap: 28px;
+    }
+
+    h1 { font-size: 1.4rem; font-weight: 300; letter-spacing: 0.15em; color: #7aa8ff; }
+    .subtitle { font-size: 0.8rem; color: #6a8acc; letter-spacing: 0.1em; margin-top: -20px; }
+
+    .mode-tabs { display: flex; gap: 8px; width: 100%; max-width: 700px; }
+    .mode-tab {
+      flex: 1; padding: 12px; border: 1px solid #3a5585; border-radius: 8px;
+      background: transparent; color: #6a8acc; font-size: 0.85rem;
+      letter-spacing: 0.05em; cursor: pointer; transition: all 0.2s;
+    }
+    .mode-tab.active.static-tab   { background: #3a5585; border-color: #3a5080; color: #9ac0ff; }
+    .mode-tab.active.adsr-tab     { background: #2a3a18; border-color: #4a6a28; color: #b0e060; }
+    .mode-tab.active.uniform-tab  { background: #2a1e10; border-color: #aa6020; color: #ffa060; }
+    .mode-tab:hover { filter: brightness(1.3); }
+
+    .canvas-wrap { position: relative; width: 100%; max-width: 700px; }
+    canvas { width: 100%; height: 140px; border-radius: 12px; background: #0c1e30; display: block; }
+    .canvas-label {
+      position: absolute; top: 10px; left: 14px;
+      font-size: 0.7rem; color: #6a8acc; letter-spacing: 0.08em; pointer-events: none;
+    }
+
+    .panel {
+      width: 100%; max-width: 700px; background: #162840;
+      border: 1px solid #3a5585; border-radius: 12px; padding: 20px 24px;
+    }
+    .panel-title { font-size: 0.7rem; color: #6a8acc; letter-spacing: 0.12em; margin-bottom: 16px; }
+
+    .h-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 0.76rem; }
+    .h-row:last-child { margin-bottom: 0; }
+    .h-label { color: #6a8acc; min-width: 48px; }
+    .h-decay { min-width: 52px; font-family: 'SF Mono', monospace; font-size: 0.72rem; }
+    .h-bar-wrap { flex: 1; height: 4px; background: #1e3050; border-radius: 2px; overflow: hidden; }
+    .h-bar { height: 100%; border-radius: 2px; transition: width 0.04s linear; }
+
+    .control-row { display: flex; align-items: center; gap: 16px; width: 100%; max-width: 700px; }
+    .ctrl-label { font-size: 0.78rem; color: #6a8acc; min-width: 72px; }
+    .ctrl-val { font-size: 1rem; color: #e0e8ff; min-width: 48px; text-align: right; font-family: 'SF Mono', monospace; }
+    .ctrl-unit { font-size: 0.72rem; color: #6a8acc; min-width: 16px; }
+
+    input[type=range] {
+      -webkit-appearance: none; flex: 1; height: 3px; background: #3a5585; border-radius: 2px; outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 16px; height: 16px; background: #7aa8ff; border-radius: 50%; cursor: pointer;
+    }
+
+    .piano { display: flex; gap: 4px; width: 100%; max-width: 700px; }
+    .key {
+      flex: 1; height: 80px; border: 1px solid #3a5585; border-radius: 6px;
+      background: #162840; color: #6a8acc; font-size: 0.7rem; letter-spacing: 0.05em;
+      display: flex; align-items: flex-end; justify-content: center; padding-bottom: 10px;
+      cursor: pointer; transition: all 0.08s; user-select: none; -webkit-user-select: none;
+      font-family: inherit; outline: none;
+    }
+    .key:hover { background: #1e3a55; color: #9ac0ff; }
+    .key.active { background: #3a5585; color: #c0e070; transform: scale(0.96); }
+
+    .hint {
+      font-size: 0.78rem; color: #8aabcc; max-width: 700px; width: 100%;
+      line-height: 1.9; border-left: 2px solid #3a5585; padding-left: 16px;
+    }
+    .hint strong { color: #b0ccee; }
+  </style>
+</head>
+<body>
+
+  <h1>ADSR LAB</h1>
+  <p class="subtitle">倍音ごとに消えていく</p>
+
+  <div class="mode-tabs">
+    <button class="mode-tab static-tab active" id="tab-static"   onclick="setMode('static')">静的（全倍音が均等）</button>
+    <button class="mode-tab adsr-tab"          id="tab-adsr"     onclick="setMode('adsr')">ADSR（倍音が個別減衰）</button>
+    <button class="mode-tab uniform-tab"       id="tab-uniform"  onclick="setMode('uniform')">均一（全倍音が同時減衰）</button>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas" width="700" height="140"></canvas>
+    <div class="canvas-label" id="canvas-label">WAVEFORM — STATIC MODE</div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">HARMONIC DECAY — 倍音ごとの減衰速度</div>
+    <div id="h-rows"></div>
+  </div>
+
+  <div class="control-row">
+    <span class="ctrl-label">減衰速度</span>
+    <input type="range" id="slider-decay" min="0.5" max="6" value="2" step="0.1">
+    <span class="ctrl-val" id="val-decay">2.0</span>
+    <span class="ctrl-unit">s</span>
+  </div>
+
+  <div class="control-row">
+    <span class="ctrl-label">減衰指数</span>
+    <input type="range" id="slider-exp" min="0.1" max="2.0" value="0.8" step="0.05">
+    <span class="ctrl-val" id="val-exp">0.80</span>
+    <span class="ctrl-unit">n^α</span>
+  </div>
+
+  <div class="piano" id="piano"></div>
+
+  <div class="hint">
+    <strong>聴き比べ方：</strong><br>
+    静的モードで鍵盤を押す → ADSRに切り替えて同じ鍵盤を押す。<br>
+    ADSRでは高次倍音ほど速く消えるので、音の「色」が時間とともに変わる。<br>
+    減衰速度を遅くして複数の鍵盤を連打すると、音が重なり合って溶けていく。
+  </div>
+
+</body>
+
+<script>
+  // === Constants ===
+  const HARMONICS  = [1, 2, 3, 4, 5, 6, 7];
+  const H_AMPS     = [1.0, 0.6, 0.35, 0.2, 0.12, 0.08, 0.05];
+  const TOTAL_AMP  = H_AMPS.reduce((a, b) => a + b, 0);
+  const ATTACK     = 0.012; // 12ms
+
+  const BLUE_COLORS   = ['#7aa8ff','#6090e8','#4878d0','#3868c0','#2858b0','#1848a0','#083890'];
+  const GREEN_COLORS  = ['#b0e060','#a0d050','#90c040','#80b030','#70a020','#609010','#508008'];
+  const ORANGE_COLORS = ['#ffa060','#e08040','#c06828','#a05818','#884810','#703808','#582800'];
+
+  const NOTES = [
+    {name:'C', freq:261.63}, {name:'D', freq:293.66}, {name:'E', freq:329.63},
+    {name:'F', freq:349.23}, {name:'G', freq:392.00}, {name:'A', freq:440.00},
+    {name:'B', freq:493.88}, {name:'C', freq:523.25},
+  ];
+
+  // === State ===
+  let mode        = 'static';
+  let activeNotes = []; // [{startTime (performance.now/1000), decayBase}]
+
+  // === DOM ===
+  const canvas      = document.getElementById('canvas');
+  const ctx2d       = canvas.getContext('2d');
+  const canvasLabel = document.getElementById('canvas-label');
+  const sliderDecay = document.getElementById('slider-decay');
+  const valDecay    = document.getElementById('val-decay');
+  const sliderExp   = document.getElementById('slider-exp');
+  const valExp      = document.getElementById('val-exp');
+
+  // === Build harmonic rows ===
+  (function buildRows() {
+    const container = document.getElementById('h-rows');
+    HARMONICS.forEach((h, i) => {
+      const row = document.createElement('div');
+      row.className = 'h-row';
+      row.innerHTML = `
+        <span class="h-label">${h}倍音</span>
+        <span class="h-decay" id="hdec-${i}" style="color:${BLUE_COLORS[i]}">—</span>
+        <div class="h-bar-wrap">
+          <div class="h-bar" id="hbar-${i}" style="background:${BLUE_COLORS[i]};width:0%"></div>
+        </div>
+      `;
+      container.appendChild(row);
+    });
+  })();
+
+  // === Build piano keys ===
+  (function buildPiano() {
+    const piano = document.getElementById('piano');
+    NOTES.forEach(note => {
+      const key = document.createElement('button');
+      key.className = 'key';
+      key.textContent = note.name;
+      key.type = 'button';
+      key.addEventListener('click',      () => triggerNote(note.freq, key));
+      key.addEventListener('touchstart', e  => { e.preventDefault(); triggerNote(note.freq, key); });
+      piano.appendChild(key);
+    });
+  })();
+
+  // === Helpers ===
+  function getDecayTime(harmonicIndex, decayBase) {
+    const exp = parseFloat(sliderExp.value);
+    return decayBase / Math.pow(harmonicIndex + 1, exp);
+  }
+
+  // Returns current level 0–1 (normalized to peak) for given harmonic at elapsed time
+  function harmonicLevel(harmonicIndex, elapsed, decayBase) {
+    if (elapsed < 0) return 0;
+    if (elapsed < ATTACK) return elapsed / ATTACK;
+    const t = elapsed - ATTACK;
+    if (mode === 'static') {
+      return elapsed < 4 ? 1 : 0;
+    }
+    if (mode === 'uniform') {
+      const tau = decayBase / 3.5; // same tau for all harmonics
+      return Math.exp(-t / tau);
+    }
+    const tau = getDecayTime(harmonicIndex, decayBase) / 3.5;
+    return Math.exp(-t / tau);
+  }
+
+  function updateDecayDisplay() {
+    const decayBase = parseFloat(sliderDecay.value);
+    HARMONICS.forEach((_, i) => {
+      const el = document.getElementById(`hdec-${i}`);
+      if (mode === 'static') {
+        el.textContent = '∞';
+      } else if (mode === 'uniform') {
+        el.textContent = decayBase.toFixed(2) + 's'; // same for all
+      } else {
+        el.textContent = getDecayTime(i, decayBase).toFixed(2) + 's';
+      }
+    });
+  }
+
+  sliderDecay.addEventListener('input', () => {
+    valDecay.textContent = parseFloat(sliderDecay.value).toFixed(1);
+    updateDecayDisplay();
+  });
+
+  sliderExp.addEventListener('input', () => {
+    valExp.textContent = parseFloat(sliderExp.value).toFixed(2);
+    updateDecayDisplay();
+  });
+
+  // === Audio: fresh context per note ===
+  function triggerNote(freq, keyEl) {
+    keyEl.classList.add('active');
+    setTimeout(() => keyEl.classList.remove('active'), 180);
+
+    const ctx       = new AudioContext();
+    const t0        = ctx.currentTime;
+    const decayBase = parseFloat(sliderDecay.value);
+
+    activeNotes.push({ startTime: performance.now() / 1000, decayBase });
+    if (activeNotes.length > 12) activeNotes.shift();
+
+    HARMONICS.forEach((h, i) => {
+      const osc   = ctx.createOscillator();
+      const gNode = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.value = freq * h;
+
+      const amp = H_AMPS[i] / TOTAL_AMP * 0.5;
+
+      // Direct assignment — same pattern as TEST TONE
+      gNode.gain.value = amp;
+
+      osc.connect(gNode);
+      gNode.connect(ctx.destination);
+      osc.start(); // start before stop (required)
+
+      if (mode === 'adsr') {
+        const tau = getDecayTime(i, decayBase) / 3.5;
+        gNode.gain.setTargetAtTime(0.0001, t0 + ATTACK, tau);
+        osc.stop(t0 + ATTACK + decayBase * 4);
+      } else if (mode === 'uniform') {
+        const tau = decayBase / 3.5; // same tau for all harmonics
+        gNode.gain.setTargetAtTime(0.0001, t0 + ATTACK, tau);
+        osc.stop(t0 + ATTACK + decayBase * 4);
+      } else {
+        osc.stop(t0 + 4);
+      }
+    });
+  }
+
+  // === Mode ===
+  function setMode(m) {
+    mode = m;
+    activeNotes = [];
+
+    document.getElementById('tab-static').classList.toggle('active',  m === 'static');
+    document.getElementById('tab-adsr').classList.toggle('active',    m === 'adsr');
+    document.getElementById('tab-uniform').classList.toggle('active', m === 'uniform');
+
+    canvasLabel.textContent = m === 'static'  ? 'WAVEFORM — STATIC MODE'
+                            : m === 'adsr'    ? 'WAVEFORM — ADSR MODE'
+                            :                   'WAVEFORM — UNIFORM DECAY';
+
+    const colors = m === 'adsr' ? GREEN_COLORS : m === 'uniform' ? ORANGE_COLORS : BLUE_COLORS;
+    HARMONICS.forEach((_, i) => {
+      document.getElementById(`hbar-${i}`).style.background  = colors[i];
+      document.getElementById(`hdec-${i}`).style.color       = colors[i];
+    });
+
+    updateDecayDisplay();
+  }
+
+  // === Bars update (performance.now ベース) ===
+  function updateBars(now) {
+    const decayBase = parseFloat(sliderDecay.value);
+    const maxLife   = mode === 'static' ? 4.5 : decayBase * 5;
+    activeNotes     = activeNotes.filter(n => (now - n.startTime) < maxLife);
+
+    const combined = new Array(HARMONICS.length).fill(0);
+    activeNotes.forEach(note => {
+      const elapsed = now - note.startTime;
+      HARMONICS.forEach((_, i) => {
+        combined[i] += harmonicLevel(i, elapsed, note.decayBase);
+      });
+    });
+
+    HARMONICS.forEach((_, i) => {
+      document.getElementById(`hbar-${i}`).style.width = Math.min(100, combined[i] * 100) + '%';
+    });
+  }
+
+  // === Canvas: エンベロープ形状を描画 ===
+  function drawCanvas() {
+    const W = canvas.width, H = canvas.height;
+    const decayBase = parseFloat(sliderDecay.value);
+    const maxTime   = mode === 'static' ? 4.5 : decayBase * 4;
+    const color     = mode === 'adsr' ? '#b0e060' : '#7aa8ff';
+    const glow      = mode === 'adsr' ? '#60a020' : '#3366ff';
+
+    ctx2d.fillStyle = '#0c1e30';
+    ctx2d.fillRect(0, 0, W, H);
+
+    ctx2d.strokeStyle = '#1e3050';
+    ctx2d.lineWidth   = 1;
+    ctx2d.beginPath(); ctx2d.moveTo(0, H/2); ctx2d.lineTo(W, H/2); ctx2d.stroke();
+
+    // 1倍音のエンベロープ形状
+    ctx2d.strokeStyle = color;
+    ctx2d.lineWidth   = 2;
+    ctx2d.shadowColor = glow;
+    ctx2d.shadowBlur  = 8;
+    ctx2d.beginPath();
+    for (let px = 0; px < W; px++) {
+      const t     = (px / W) * maxTime;
+      const level = harmonicLevel(0, t, decayBase);
+      const y     = H/2 - level * (H/2 - 10);
+      px === 0 ? ctx2d.moveTo(px, y) : ctx2d.lineTo(px, y);
+    }
+    ctx2d.stroke();
+    ctx2d.shadowBlur = 0;
+  }
+
+  // === アニメーションループ ===
+  function animLoop() {
+    requestAnimationFrame(animLoop);
+    updateBars(performance.now() / 1000);
+    drawCanvas();
+  }
+
+  updateDecayDisplay();
+  animLoop();
+
+</script>
+</html>

@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Just vs Equal — 純正律と平均律</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: radial-gradient(ellipse at 30% 20%, #1e3a6e, #112244, #1a2a40);
+      color: #e0e8ff;
+      font-family: 'Helvetica Neue', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      gap: 28px;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 300;
+      letter-spacing: 0.15em;
+      color: #7aa8ff;
+    }
+
+    .subtitle {
+      font-size: 0.8rem;
+      color: #6a8acc;
+      letter-spacing: 0.1em;
+      margin-top: -20px;
+    }
+
+    .mode-tabs {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+      max-width: 700px;
+    }
+
+    .mode-tab {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #3a5585;
+      border-radius: 8px;
+      background: transparent;
+      color: #6a8acc;
+      font-size: 0.85rem;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .mode-tab.active.just-tab  { background: #1a3a28; border-color: #2a5a40; color: #7affaa; }
+    .mode-tab.active.equal-tab { background: #3a5585; border-color: #3a5080; color: #9ac0ff; }
+    .mode-tab:hover { filter: brightness(1.3); }
+
+    .canvas-wrap {
+      position: relative;
+      width: 100%;
+      max-width: 700px;
+    }
+
+    canvas {
+      width: 100%;
+      height: 140px;
+      border-radius: 12px;
+      background: #0c1e30;
+      display: block;
+    }
+
+    .canvas-label {
+      position: absolute;
+      top: 10px;
+      left: 14px;
+      font-size: 0.7rem;
+      color: #6a8acc;
+      letter-spacing: 0.08em;
+      pointer-events: none;
+    }
+
+    .panel {
+      width: 100%;
+      max-width: 700px;
+      background: #162840;
+      border: 1px solid #3a5585;
+      border-radius: 12px;
+      padding: 20px 24px;
+    }
+
+    .panel-title {
+      font-size: 0.7rem;
+      color: #6a8acc;
+      letter-spacing: 0.12em;
+      margin-bottom: 18px;
+    }
+
+    .int-row {
+      display: grid;
+      grid-template-columns: 72px 100px 90px auto 1fr;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      font-size: 0.78rem;
+    }
+    .int-row:last-of-type { margin-bottom: 0; }
+
+    .int-name { color: #e0e8ff; }
+    .int-freq { color: #7aa8ff; font-family: 'SF Mono', monospace; }
+    .int-ratio { color: #6a8acc; font-family: 'SF Mono', monospace; font-size: 0.72rem; }
+
+    .beat-val {
+      font-family: 'SF Mono', monospace;
+      font-size: 0.82rem;
+      min-width: 60px;
+      transition: color 0.2s;
+    }
+
+    .c-zero { color: #7affaa; }
+    .c-low  { color: #ffdd88; }
+    .c-mid  { color: #ffaa66; }
+    .c-high { color: #ff7aaa; }
+
+    .bar-wrap {
+      height: 3px;
+      background: #1e3050;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.15s, background 0.15s;
+    }
+
+    .panel-note {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid #1e3050;
+      font-size: 0.72rem;
+      color: #4a6a8a;
+      line-height: 1.9;
+      font-family: 'SF Mono', monospace;
+    }
+
+    .panel-note em { color: #6a8acc; font-style: normal; }
+
+    .summary {
+      width: 100%;
+      max-width: 700px;
+      background: #162840;
+      border: 1px solid #3a5585;
+      border-radius: 12px;
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .sum-number {
+      font-size: 3rem;
+      font-weight: 200;
+      line-height: 1;
+      min-width: 90px;
+      transition: color 0.3s;
+    }
+
+    .sum-desc {
+      font-size: 0.82rem;
+      color: #6a8acc;
+      line-height: 2;
+    }
+    .sum-desc strong { color: #e0e8ff; }
+
+    .control-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      width: 100%;
+      max-width: 700px;
+    }
+
+    .ctrl-label {
+      font-size: 0.78rem;
+      color: #6a8acc;
+      min-width: 48px;
+    }
+
+    .ctrl-val {
+      font-size: 1rem;
+      color: #e0e8ff;
+      min-width: 48px;
+      text-align: right;
+      font-family: 'SF Mono', monospace;
+    }
+
+    .ctrl-unit {
+      font-size: 0.72rem;
+      color: #6a8acc;
+      min-width: 22px;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      flex: 1;
+      height: 3px;
+      background: #3a5585;
+      border-radius: 2px;
+      outline: none;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #7aa8ff;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    #toggle-btn {
+      width: 100%;
+      max-width: 700px;
+      padding: 16px;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      letter-spacing: 0.15em;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #3a5585;
+      color: #7aa8ff;
+    }
+
+    #toggle-btn.playing { background: #0d2040; color: #ff7aaa; }
+    #toggle-btn:hover { transform: scale(1.01); filter: brightness(1.2); }
+
+    .hint {
+      font-size: 0.78rem;
+      color: #8aabcc;
+      max-width: 700px;
+      width: 100%;
+      line-height: 1.9;
+      border-left: 2px solid #3a5585;
+      padding-left: 16px;
+    }
+    .hint strong { color: #b0ccee; }
+  </style>
+</head>
+<body>
+
+  <h1>JUST vs EQUAL</h1>
+  <p class="subtitle">倍音の整数比が消す「うなり」</p>
+
+  <div class="mode-tabs">
+    <button class="mode-tab just-tab"  id="tab-just"  onclick="setMode('just')">純正律（整数比）</button>
+    <button class="mode-tab equal-tab active" id="tab-equal" onclick="setMode('equal')">平均律（12等分）</button>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="canvas" width="700" height="140"></canvas>
+    <div class="canvas-label" id="canvas-label">WAVEFORM — EQUAL TEMPERAMENT</div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">CHORD ANALYSIS — ドミソ和音のうなり（倍音の衝突）</div>
+
+    <div class="int-row">
+      <span class="int-name">根音</span>
+      <span class="int-freq" id="freq-root">440.0 Hz</span>
+      <span class="int-ratio">1 : 1</span>
+      <span class="beat-val c-zero">—</span>
+      <div class="bar-wrap"><div class="bar-fill" style="width:0%"></div></div>
+    </div>
+
+    <div class="int-row">
+      <span class="int-name">長3度</span>
+      <span class="int-freq" id="freq-third">— Hz</span>
+      <span class="int-ratio" id="ratio-third">—</span>
+      <span class="beat-val" id="beat-third">— Hz</span>
+      <div class="bar-wrap"><div class="bar-fill" id="bar-third" style="width:0%"></div></div>
+    </div>
+
+    <div class="int-row">
+      <span class="int-name">完全5度</span>
+      <span class="int-freq" id="freq-fifth">— Hz</span>
+      <span class="int-ratio" id="ratio-fifth">—</span>
+      <span class="beat-val" id="beat-fifth">— Hz</span>
+      <div class="bar-wrap"><div class="bar-fill" id="bar-fifth" style="width:0%"></div></div>
+    </div>
+
+    <div class="panel-note" id="panel-note"></div>
+  </div>
+
+  <div class="summary">
+    <div class="sum-number" id="sum-number">—</div>
+    <div class="sum-desc" id="sum-desc"></div>
+  </div>
+
+  <div class="control-row">
+    <span class="ctrl-label">基音</span>
+    <input type="range" id="slider-base" min="220" max="523" value="440" step="1">
+    <span class="ctrl-val" id="val-base">440</span>
+    <span class="ctrl-unit">Hz</span>
+  </div>
+
+  <button id="toggle-btn">▶ START</button>
+
+  <div class="hint">
+    <strong>聴き比べ方：</strong><br>
+    平均律でSTART → 純正律に切り替える。長3度のうなりが消えるのを耳で確認する。<br>
+    和音が「澄む」感じが、うなりゼロになる瞬間。<br>
+    <strong>なぜ純正律の和音は気持ちいいのか</strong> — 答えはこの数値の差にある。
+  </div>
+
+</body>
+
+<script>
+  // === Tuning constants ===
+  const JUST_THIRD = 5 / 4;              // 1.25 (exact)
+  const JUST_FIFTH = 3 / 2;              // 1.5  (exact)
+  const ET_THIRD   = Math.pow(2, 4/12);  // ~1.25992
+  const ET_FIFTH   = Math.pow(2, 7/12);  // ~1.49831
+
+  // Key overtone clash: coefficients (multiply by base freq to get beat rate)
+  // Long 3rd:    5th harmonic of root  vs  4th harmonic of third
+  //   Just:  5 × root = 4 × (root × 5/4) = 5 × root  → clash = 0
+  //   Equal: 5 × root ≠ 4 × (root × ET_THIRD)         → clash > 0
+  const THIRD_COEFF_JUST  = Math.abs(5 - 4 * JUST_THIRD); // = 0
+  const THIRD_COEFF_ET    = Math.abs(5 - 4 * ET_THIRD);   // ~0.03968
+
+  // Perfect 5th: 3rd harmonic of root  vs  2nd harmonic of fifth
+  const FIFTH_COEFF_JUST  = Math.abs(3 - 2 * JUST_FIFTH); // = 0
+  const FIFTH_COEFF_ET    = Math.abs(3 - 2 * ET_FIFTH);   // ~0.00338
+
+  // === Harmonics (piano-like timbre) ===
+  const HARMONICS = [1, 2, 3, 4, 5, 6];
+  const H_AMPS    = [1.0, 0.6, 0.35, 0.2, 0.12, 0.08];
+  const TOTAL_AMP = H_AMPS.reduce((a, b) => a + b, 0);
+
+  // === State ===
+  let mode      = 'equal';
+  let isPlaying = false;
+  let audioCtx  = null, masterGain = null, analyser = null;
+  let voices    = [];
+  let animId    = null;
+
+  // === DOM ===
+  const canvas      = document.getElementById('canvas');
+  const ctx2d       = canvas.getContext('2d');
+  const sliderBase  = document.getElementById('slider-base');
+  const valBase     = document.getElementById('val-base');
+  const btn         = document.getElementById('toggle-btn');
+  const canvasLabel = document.getElementById('canvas-label');
+
+  // === Helpers ===
+  function getThirdRatio() { return mode === 'just' ? JUST_THIRD : ET_THIRD; }
+  function getFifthRatio() { return mode === 'just' ? JUST_FIFTH : ET_FIFTH; }
+
+  function getThirdBeat(base) {
+    return base * (mode === 'just' ? THIRD_COEFF_JUST : THIRD_COEFF_ET);
+  }
+  function getFifthBeat(base) {
+    return base * (mode === 'just' ? FIFTH_COEFF_JUST : FIFTH_COEFF_ET);
+  }
+
+  function beatClass(hz) {
+    if (hz < 0.05) return 'c-zero';
+    if (hz < 2)    return 'c-low';
+    if (hz < 6)    return 'c-mid';
+    return 'c-high';
+  }
+
+  function beatColor(hz) {
+    if (hz < 0.05) return '#7affaa';
+    if (hz < 2)    return '#ffdd88';
+    if (hz < 6)    return '#ffaa66';
+    return '#ff7aaa';
+  }
+
+  // === Update display ===
+  function updateInfo() {
+    const base = parseFloat(sliderBase.value);
+    valBase.textContent = base;
+
+    const thirdFreq = base * getThirdRatio();
+    const fifthFreq = base * getFifthRatio();
+    const thirdBeat = getThirdBeat(base);
+    const fifthBeat = getFifthBeat(base);
+
+    document.getElementById('freq-root').textContent  = base.toFixed(1) + ' Hz';
+    document.getElementById('freq-third').textContent = thirdFreq.toFixed(1) + ' Hz';
+    document.getElementById('freq-fifth').textContent = fifthFreq.toFixed(1) + ' Hz';
+
+    document.getElementById('ratio-third').textContent =
+      mode === 'just' ? '5 : 4' : '2^(4/12)';
+    document.getElementById('ratio-fifth').textContent =
+      mode === 'just' ? '3 : 2' : '2^(7/12)';
+
+    const thirdEl = document.getElementById('beat-third');
+    thirdEl.textContent = thirdBeat < 0.05 ? '0.0 Hz' : thirdBeat.toFixed(1) + ' Hz';
+    thirdEl.className   = 'beat-val ' + beatClass(thirdBeat);
+    const barT = document.getElementById('bar-third');
+    barT.style.width      = Math.min(100, (thirdBeat / 20) * 100) + '%';
+    barT.style.background = beatColor(thirdBeat);
+
+    const fifthEl = document.getElementById('beat-fifth');
+    fifthEl.textContent = fifthBeat < 0.005 ? '0.0 Hz' : fifthBeat.toFixed(2) + ' Hz';
+    fifthEl.className   = 'beat-val ' + beatClass(fifthBeat);
+    const barF = document.getElementById('bar-fifth');
+    barF.style.width      = Math.min(100, (fifthBeat / 20) * 100) + '%';
+    barF.style.background = beatColor(fifthBeat);
+
+    // Panel note — shows the actual overtone numbers
+    const note = document.getElementById('panel-note');
+    if (mode === 'just') {
+      note.innerHTML =
+        `<em>5×根音 = 4×長3度 = ${(base*5).toFixed(0)} Hz → うなりゼロ</em><br>` +
+        `<em>3×根音 = 2×完全5度 = ${(base*3).toFixed(0)} Hz → うなりゼロ</em>`;
+    } else {
+      note.innerHTML =
+        `<em>5×根音 (${(base*5).toFixed(0)} Hz) ≠ 4×長3度 (${(thirdFreq*4).toFixed(1)} Hz) → ${thirdBeat.toFixed(1)} Hz</em><br>` +
+        `<em>3×根音 (${(base*3).toFixed(0)} Hz) ≠ 2×完全5度 (${(fifthFreq*2).toFixed(1)} Hz) → ${fifthBeat.toFixed(2)} Hz</em>`;
+    }
+
+    // Summary
+    const sumNum  = document.getElementById('sum-number');
+    const sumDesc = document.getElementById('sum-desc');
+    if (mode === 'just') {
+      sumNum.textContent  = '0';
+      sumNum.style.color  = '#7affaa';
+      sumDesc.innerHTML   =
+        `<strong>うなりゼロ — 倍音が完全に重なる</strong><br>` +
+        `整数比の音程は倍音の交点が一致する<br>` +
+        `和音が「澄む」のはこのため`;
+    } else {
+      sumNum.textContent  = thirdBeat.toFixed(1);
+      sumNum.style.color  = '#ff7aaa';
+      sumDesc.innerHTML   =
+        `<strong>長3度のうなり: ${thirdBeat.toFixed(1)} Hz</strong><br>` +
+        `1秒に ${Math.round(thirdBeat)} 回以上、倍音が衝突している<br>` +
+        `完全5度は比較的安定（${fifthBeat.toFixed(2)} Hz）`;
+    }
+
+    canvasLabel.textContent = mode === 'just'
+      ? 'WAVEFORM — JUST INTONATION'
+      : 'WAVEFORM — EQUAL TEMPERAMENT';
+
+    document.getElementById('tab-just').classList.toggle('active',  mode === 'just');
+    document.getElementById('tab-equal').classList.toggle('active', mode === 'equal');
+  }
+
+  // === Audio ===
+  function makeVoice(freq) {
+    const vGain = audioCtx.createGain();
+    vGain.gain.value = 0.28;
+    const oscs = HARMONICS.map((h, i) => {
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq * h;
+      const g = audioCtx.createGain();
+      g.gain.value = H_AMPS[i] / TOTAL_AMP;
+      osc.connect(g);
+      g.connect(vGain);
+      osc.start();
+      return osc;
+    });
+    return { oscs, vGain };
+  }
+
+  function setVoiceFreq(voice, freq) {
+    const t = audioCtx.currentTime;
+    HARMONICS.forEach((h, i) => {
+      voice.oscs[i].frequency.setTargetAtTime(freq * h, t, 0.025);
+    });
+  }
+
+  function startAudio() {
+    audioCtx   = new AudioContext();
+    analyser   = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.22;
+
+    const base  = parseFloat(sliderBase.value);
+    const third = base * getThirdRatio();
+    const fifth = base * getFifthRatio();
+
+    voices = [base, third, fifth].map(f => makeVoice(f));
+    voices.forEach(v => v.vGain.connect(masterGain));
+    masterGain.connect(analyser);
+    analyser.connect(audioCtx.destination);
+
+    drawLoop();
+  }
+
+  function stopAudio() {
+    cancelAnimationFrame(animId);
+    voices.forEach(v => v.oscs.forEach(o => o.stop()));
+    if (audioCtx) audioCtx.close();
+    voices = [];
+    audioCtx = analyser = masterGain = null;
+    ctx2d.fillStyle = '#0c1e30';
+    ctx2d.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // === Mode switch ===
+  function setMode(m) {
+    mode = m;
+    updateInfo();
+    if (!isPlaying) return;
+    const base  = parseFloat(sliderBase.value);
+    const third = base * getThirdRatio();
+    const fifth = base * getFifthRatio();
+    [base, third, fifth].forEach((f, i) => setVoiceFreq(voices[i], f));
+  }
+
+  // === Slider ===
+  sliderBase.addEventListener('input', () => {
+    updateInfo();
+    if (!isPlaying) return;
+    const base  = parseFloat(sliderBase.value);
+    const third = base * getThirdRatio();
+    const fifth = base * getFifthRatio();
+    [base, third, fifth].forEach((f, i) => setVoiceFreq(voices[i], f));
+  });
+
+  // === Waveform ===
+  function drawLoop() {
+    const bufLen = analyser.frequencyBinCount;
+    const data   = new Uint8Array(bufLen);
+    const W = canvas.width, H = canvas.height;
+
+    function draw() {
+      animId = requestAnimationFrame(draw);
+      analyser.getByteTimeDomainData(data);
+
+      ctx2d.fillStyle = '#0c1e30';
+      ctx2d.fillRect(0, 0, W, H);
+
+      ctx2d.strokeStyle = '#1e3050';
+      ctx2d.lineWidth   = 1;
+      ctx2d.beginPath();
+      ctx2d.moveTo(0, H/2);
+      ctx2d.lineTo(W, H/2);
+      ctx2d.stroke();
+
+      const waveColor = mode === 'just' ? '#7affaa' : '#7aa8ff';
+      const glowColor = mode === 'just' ? '#00cc66' : '#3366ff';
+
+      ctx2d.strokeStyle = waveColor;
+      ctx2d.lineWidth   = 2;
+      ctx2d.shadowColor = glowColor;
+      ctx2d.shadowBlur  = 8;
+      ctx2d.beginPath();
+      const sw = W / bufLen;
+      let x = 0;
+      for (let i = 0; i < bufLen; i++) {
+        const y = (data[i] / 128.0 * H) / 2;
+        i === 0 ? ctx2d.moveTo(x, y) : ctx2d.lineTo(x, y);
+        x += sw;
+      }
+      ctx2d.stroke();
+      ctx2d.shadowBlur = 0;
+    }
+    draw();
+  }
+
+  // === Toggle ===
+  btn.addEventListener('click', () => {
+    if (!isPlaying) {
+      startAudio();
+      btn.textContent = '■ STOP';
+      btn.classList.add('playing');
+    } else {
+      stopAudio();
+      btn.textContent = '▶ START';
+      btn.classList.remove('playing');
+    }
+    isPlaying = !isPlaying;
+  });
+
+  updateInfo();
+</script>
+</html>
